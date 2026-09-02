@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gemelo Digital Urbano de Salud — Trujillo</title>
+    <meta
+      name="description"
+      content="Gemelo digital urbano sensible a la equidad para el monitoreo dinámico de determinantes sociales de la salud y acceso a servicios sanitarios en el Área Metropolitana de Trujillo, Perú."
+    />
+
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23517664'/%3E%3Cpath d='M8 20.5c2.6 0 2.6-9 5.2-9s2.6 13 5.2 13 2.6-9 5.2-9' fill='none' stroke='%239FD8CB' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+    <meta name="theme-color" content="#f4f6f5" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1c1f1a" media="(prefers-color-scheme: dark)" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <meta property="og:title" content="Gemelo Digital Urbano de Salud — Trujillo" />
+    <meta
+      property="og:description"
+      content="Plataforma de gemelo digital urbano sensible a la equidad para el monitoreo dinámico de determinantes sociales de la salud, demanda y simulación de intervenciones en el Área Metropolitana de Trujillo, Perú."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <script>
+      // Aplica el tema antes del primer pintado para evitar el destello de color.
+      (function () {
+        try {
+          var stored = localStorage.getItem('gdu-trujillo-theme');
+          var theme =
+            stored === 'light' || stored === 'dark'
+              ? stored
+              : window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light';
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

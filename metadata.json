@@ -1,0 +1,6 @@
+{
+  "name": "Gemelo Digital Urbano de Salud - Trujillo",
+  "description": "Plataforma de Gemelo Digital Urbano sensible a la equidad para el monitoreo dinámico de determinantes sociales de la salud, demanda y simulación de intervenciones en el Área Metropolitana de Trujillo, Perú.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

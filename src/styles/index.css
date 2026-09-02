@@ -1,0 +1,341 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   GEMELO DIGITAL URBANO DE SALUD — SISTEMA DE DISENO
+   Paleta base:
+     #CACFD6  #D6E5E3  #9FD8CB  #517664  #2D3319
+     #E0E0E0  #CECECE  #C5C5C5  #686868  #2E2E2E
+
+   Los tokens siguen la convencion shadcn/ui para que los componentes de
+   `mapcn` (components/ui/map.tsx) funcionen sin modificaciones.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* --- Superficies ------------------------------------------------------- */
+  --background: #f4f6f5;
+  --surface: #ffffff;
+  --surface-sunken: #eceeed;
+  --surface-raised: #ffffff;
+  --card: #ffffff;
+  --card-foreground: #2d3319;
+  --popover: #ffffff;
+  --popover-foreground: #2d3319;
+
+  /* --- Texto ------------------------------------------------------------- */
+  --foreground: #2d3319;
+  --muted: #eceeed;
+  --muted-foreground: #686868;
+  --subtle-foreground: #8b8f88;
+
+  /* --- Bordes y foco ----------------------------------------------------- */
+  --border: #d9dedb;
+  --border-strong: #c5c5c5;
+  --input: #d9dedb;
+  --ring: #517664;
+
+  /* --- Marca ------------------------------------------------------------- */
+  --primary: #517664;
+  --primary-hover: #446552;
+  --primary-foreground: #ffffff;
+  --accent: #d6e5e3;
+  --accent-foreground: #2d3319;
+  --highlight: #9fd8cb;
+  --highlight-foreground: #24402f;
+
+  /* --- Escala de riesgo (armonizada con la paleta) ----------------------- */
+  --risk-low: #517664;
+  --risk-medium: #a8873f;
+  --risk-high: #c0703f;
+  --risk-critical: #9e4a3c;
+
+  /* --- Semanticos -------------------------------------------------------- */
+  --positive: #3f7a5f;
+  --negative: #9e4a3c;
+  --warning: #a8873f;
+  --info: #4a6b80;
+
+  /* --- Series de datos --------------------------------------------------- */
+  --series-1: #517664;
+  --series-2: #9fd8cb;
+  --series-3: #a8873f;
+  --series-4: #4a6b80;
+  --series-5: #8f7f9c;
+
+  /* --- Sombras discretas, estilo editorial ------------------------------- */
+  --shadow-xs: 0 1px 2px rgb(45 51 25 / 0.04);
+  --shadow-sm: 0 1px 3px rgb(45 51 25 / 0.05), 0 1px 2px -1px rgb(45 51 25 / 0.04);
+  --shadow-md: 0 4px 12px -2px rgb(45 51 25 / 0.07), 0 2px 4px -2px rgb(45 51 25 / 0.04);
+  --shadow-lg: 0 12px 32px -8px rgb(45 51 25 / 0.12), 0 4px 8px -4px rgb(45 51 25 / 0.05);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --background: #1c1f1a;
+  --surface: #242822;
+  --surface-sunken: #191c17;
+  --surface-raised: #2b2f28;
+  --card: #242822;
+  --card-foreground: #e7ebe4;
+  --popover: #2b2f28;
+  --popover-foreground: #e7ebe4;
+
+  --foreground: #e7ebe4;
+  --muted: #2e332b;
+  --muted-foreground: #a3aa9c;
+  --subtle-foreground: #7e857a;
+
+  --border: #363b32;
+  --border-strong: #454b40;
+  --input: #363b32;
+  --ring: #9fd8cb;
+
+  --primary: #9fd8cb;
+  --primary-hover: #b6e3d8;
+  --primary-foreground: #1c2b23;
+  --accent: #2e3a33;
+  --accent-foreground: #d6e5e3;
+  --highlight: #9fd8cb;
+  --highlight-foreground: #1c2b23;
+
+  --risk-low: #7fb59a;
+  --risk-medium: #d0ab63;
+  --risk-high: #dc9265;
+  --risk-critical: #d4756a;
+
+  --positive: #7fb59a;
+  --negative: #d4756a;
+  --warning: #d0ab63;
+  --info: #85a8bd;
+
+  --series-1: #9fd8cb;
+  --series-2: #517664;
+  --series-3: #d0ab63;
+  --series-4: #85a8bd;
+  --series-5: #b3a3c0;
+
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.24);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.24);
+  --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.36), 0 2px 4px -2px rgb(0 0 0 / 0.24);
+  --shadow-lg: 0 12px 32px -8px rgb(0 0 0 / 0.5), 0 4px 8px -4px rgb(0 0 0 / 0.3);
+}
+
+/* ==========================================================================
+   Mapeo a utilidades de Tailwind v4.
+   `inline` mantiene una referencia viva a la variable: sin esto el cambio
+   de tema en tiempo de ejecucion no repinta las utilidades.
+   ========================================================================== */
+@theme inline {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-raised: var(--surface-raised);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-highlight: var(--highlight);
+
+  --color-risk-low: var(--risk-low);
+  --color-risk-medium: var(--risk-medium);
+  --color-risk-high: var(--risk-high);
+  --color-risk-critical: var(--risk-critical);
+
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: var(--highlight);
+    color: var(--highlight-foreground);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  select option {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+  }
+
+  input[type="range"] {
+    accent-color: var(--primary);
+  }
+
+  input[type="checkbox"] {
+    accent-color: var(--primary);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--border-strong);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--muted-foreground);
+    background-clip: content-box;
+  }
+}
+
+/* ==========================================================================
+   MapLibre / mapcn — overrides publicados por el registro de mapcn
+   ========================================================================== */
+@layer base {
+  .maplibregl-popup-content {
+    @apply bg-transparent! shadow-none! p-0! rounded-none!;
+  }
+
+  .maplibregl-popup-tip {
+    @apply hidden!;
+  }
+
+  .maplibregl-ctrl-attrib {
+    @apply bg-background! text-muted-foreground! border-border! rounded-md! border! shadow-sm!;
+  }
+
+  .maplibregl-ctrl-attrib a {
+    @apply text-muted-foreground!;
+  }
+
+  .maplibregl-ctrl-attrib a:hover {
+    @apply text-foreground!;
+  }
+
+  .maplibregl-ctrl-attrib-button {
+    @apply bg-transparent!;
+  }
+
+  :root[data-theme="dark"] .maplibregl-ctrl-attrib-button {
+    filter: invert(1);
+  }
+
+  .maplibregl-canvas:focus {
+    outline: none;
+  }
+}
+
+/* ==========================================================================
+   Utilidades y animaciones
+   ========================================================================== */
+@utility numeric {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+@keyframes fade-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes soft-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.animate-fade-rise {
+  animation: fade-rise 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-soft-pulse {
+  animation: soft-pulse 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ==========================================================================
+   Impresion — los informes deben salir legibles en papel
+   ========================================================================== */
+@media print {
+  .print-hidden {
+    display: none !important;
+  }
+
+  .printable-area {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+}
