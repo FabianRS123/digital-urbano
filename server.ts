@@ -1,6 +1,14 @@
+// Carga .env / .env.local antes de leer cualquier process.env. Sin esto, las
+// claves colocadas en un archivo se ignoraban y solo servían las variables de
+// entorno del sistema.
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { GoogleGenAI } from '@google/genai';
+
+// Servicio de agente (FastAPI + LangChain). Es opcional: si no está levantado,
+// el dictamen cae a Gemini y, en su defecto, al texto determinista.
+const AGENT_URL = process.env.AGENT_URL ?? 'http://127.0.0.1:8000/api/v1';
 import { INITIAL_DISTRICTS, INITIAL_FACILITIES, AI_BENCHMARK_MODELS, DATA_SOURCES, EQUITY_METRICS, RISK_THRESHOLDS } from './src/data/trujilloData';
 import { DigitalTwinEngine } from './src/lib/simulationEngine';
 import { generateDistrictTimeSeries, getRiskFactorsExplanation } from './src/lib/spatiotemporalGnn';
@@ -195,6 +203,36 @@ async function startServer() {
     const { districtId, topic } = req.body;
     const territory = currentTerritories.find((t: any) => t.id === districtId) || currentTerritories[1]; // default El Porvenir
 
+    // Preferencia 1: capa agéntica. Recoge las métricas del motor con sus
+    // herramientas y devuelve el registro de evidencia junto al dictamen, así
+    // que es la única vía cuyas cifras son auditables.
+    try {
+      const agentRes = await fetch(`${AGENT_URL}/agent/dictamen`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          districtId: territory.id,
+          userRole: req.body.userRole ?? 'Investigador'
+        }),
+        signal: AbortSignal.timeout(90_000)
+      });
+
+      if (agentRes.ok) {
+        const payload = await agentRes.json();
+        return res.json({
+          success: true,
+          analysis: payload.analysis,
+          facts: payload.facts,
+          modelUsed: payload.modelUsed,
+          source: 'langchain-agent'
+        });
+      }
+      console.warn(`Agente respondió ${agentRes.status}; se intenta Gemini.`);
+    } catch (err: any) {
+      // Servicio caído o sin clave: no es un error del usuario, se degrada.
+      console.warn('Capa agéntica no disponible:', err?.message ?? err);
+    }
+
     if (ai) {
       try {
         const prompt = `Actúa como especialista epidemiólogo y analista de salud pública del "Gemelo Digital Urbano de Salud - Trujillo, Perú".
@@ -240,8 +278,42 @@ Se sugiere priorizar la instalación de un establecimiento de primer nivel (cate
     res.json({
       success: true,
       analysis: fallbackText,
-      modelUsed: 'rule-based-expert-system'
+      modelUsed: 'rule-based-expert-system',
+      source: 'fallback'
     });
+  });
+
+  // 11. Agente conversacional (proxy a FastAPI + LangChain)
+  // El navegador habla solo con este origen; Express reenvía. Evita CORS y
+  // deja un único punto de entrada para el frontend.
+  app.post('/api/v1/agent/ask', async (req, res) => {
+    try {
+      const r = await fetch(`${AGENT_URL}/agent/ask`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req.body),
+        signal: AbortSignal.timeout(120_000)
+      });
+      const body = await r.json();
+      res.status(r.status).json(body);
+    } catch (err: any) {
+      res.status(503).json({
+        error: 'El servicio de agente no está disponible.',
+        hint: 'Levántalo con: cd backend && .venv/Scripts/python -m uvicorn main:app --port 8000',
+        detail: err?.message ?? String(err)
+      });
+    }
+  });
+
+  app.get('/api/v1/agent/health', async (_req, res) => {
+    try {
+      const r = await fetch(`${AGENT_URL}/agent/health`, {
+        signal: AbortSignal.timeout(5_000)
+      });
+      res.status(r.status).json(await r.json());
+    } catch {
+      res.json({ status: 'offline', llmReady: false });
+    }
   });
 
   // ================= VITE DEV / PRODUCTION MIDDLEWARE =================

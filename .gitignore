@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Python (capa agéntica)
+.venv/
+__pycache__/
+*.pyc
