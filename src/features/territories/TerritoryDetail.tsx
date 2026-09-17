@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Sparkles } from 'lucide-react';
 import {
   Area,
@@ -15,6 +15,8 @@ import {
   generateDistrictTimeSeries,
   getRiskFactorsExplanation,
 } from '../../lib/spatiotemporalGnn';
+import { DictamenReport } from '../dictamen/DictamenReport';
+import { useDictamen } from '../dictamen/useDictamen';
 import { useChartTheme } from '../../components/charts/chartTheme';
 import { ViewContainer } from '../../components/layout/AppShell';
 import {
@@ -74,29 +76,23 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
     banda: [pt.lowerConfidence, pt.upperConfidence] as [number, number],
   }));
 
-  const [aiBriefLoading, setAiBriefLoading] = useState(false);
-  const [aiBrief, setAiBrief] = useState<string | null>(null);
+  const { dictamen, loading: dictamenLoading, error: dictamenError, generar, limpiar } =
+    useDictamen();
 
-  const handleGenerateAiBrief = async () => {
-    setAiBriefLoading(true);
-    try {
-      const res = await fetch('/api/v1/ai-analysis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ districtId: district.id }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setAiBrief(data.analysis);
-    } catch (error) {
-      console.error(error);
-      setAiBrief(
-        `Dictamen para ${district.name}: distrito con índice de prioridad ${formatPercent(district.currentState.priorityIndex)}. Se recomienda expandir el primer nivel de atención y mitigar las barreras geográficas de acceso.`,
-      );
-    } finally {
-      setAiBriefLoading(false);
+  // El informe se muestra al final de la vista: al generarse, se lleva la
+  // pantalla hasta él para que no quede fuera de la vista del usuario.
+  const informeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (dictamen) {
+      informeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  };
+  }, [dictamen]);
+
+  // Un dictamen pertenece a un distrito: al cambiar de distrito se descarta.
+  useEffect(() => {
+    limpiar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [district.id]);
 
   const score = district.currentState.priorityIndex;
 
@@ -414,24 +410,40 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
 
             <div className="border-t border-border pt-3">
               <Button
-                onClick={handleGenerateAiBrief}
-                disabled={aiBriefLoading}
+                variant="primary"
+                onClick={() => generar(district.id)}
+                disabled={dictamenLoading}
                 className="w-full justify-center"
               >
                 <Sparkles className="size-3.5" />
-                {aiBriefLoading
-                  ? 'Sintetizando dictamen…'
+                {dictamenLoading
+                  ? 'Generando dictamen técnico…'
                   : 'Generar dictamen epidemiológico'}
               </Button>
-              {aiBrief && (
-                <div className="mt-3 whitespace-pre-line rounded-lg border border-primary/25 bg-primary/[0.05] p-3 text-[11.5px] leading-relaxed text-foreground">
-                  {aiBrief}
-                </div>
+              {dictamenError && (
+                <p className="mt-2 text-[11px] text-negative">{dictamenError}</p>
+              )}
+              {dictamen && !dictamenLoading && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    informeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  }
+                  className="mt-2 w-full cursor-pointer text-center text-[11.5px] font-semibold text-primary hover:underline"
+                >
+                  Dictamen generado · Ver informe completo ↓
+                </button>
               )}
             </div>
           </CardBody>
         </Card>
       </div>
+
+      {dictamen && (
+        <div ref={informeRef} className="scroll-mt-4">
+          <DictamenReport dictamen={dictamen} />
+        </div>
+      )}
     </ViewContainer>
   );
 };

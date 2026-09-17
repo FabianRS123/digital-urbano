@@ -4,10 +4,11 @@
 import 'dotenv/config';
 import express from 'express';
 import path from 'path';
-import { GoogleGenAI } from '@google/genai';
+import { construirDictamenBase, narrativaPorReglas } from './src/lib/dictamen';
+import type { DictamenTecnico } from './src/types';
 
 // Servicio de agente (FastAPI + LangChain). Es opcional: si no está levantado,
-// el dictamen cae a Gemini y, en su defecto, al texto determinista.
+// el dictamen se completa con la narrativa por reglas.
 const AGENT_URL = process.env.AGENT_URL ?? 'http://127.0.0.1:8000/api/v1';
 import { INITIAL_DISTRICTS, INITIAL_FACILITIES, AI_BENCHMARK_MODELS, DATA_SOURCES, EQUITY_METRICS, RISK_THRESHOLDS } from './src/data/trujilloData';
 import { DigitalTwinEngine } from './src/lib/simulationEngine';
@@ -23,23 +24,6 @@ async function startServer() {
   let currentTerritories = JSON.parse(JSON.stringify(INITIAL_DISTRICTS));
   let currentFacilities = JSON.parse(JSON.stringify(INITIAL_FACILITIES));
   let savedSimulations: any[] = [];
-
-  // Initialize Gemini AI Client (Server-side only)
-  let ai: GoogleGenAI | null = null;
-  if (process.env.GEMINI_API_KEY) {
-    try {
-      ai = new GoogleGenAI({
-        apiKey: process.env.GEMINI_API_KEY,
-        httpOptions: {
-          headers: {
-            'User-Agent': 'aistudio-build'
-          }
-        }
-      });
-    } catch (e) {
-      console.warn('Gemini API initialization warning:', e);
-    }
-  }
 
   // ================= REST API ROUTERS (/api/v1/...) =================
 
@@ -198,14 +182,18 @@ async function startServer() {
     });
   });
 
-  // 10. AI Executive Brief Synthesis (Gemini API)
+  // 10. Dictamen técnico estructurado
+  // Las tablas (indicadores, factores, IPRESS, vecinos) se construyen siempre
+  // con los datos del motor. La capa agéntica solo redacta la narrativa; si no
+  // responde, la narrativa se genera por reglas. El resultado es el mismo
+  // documento en ambos casos, listo para mostrarse o exportarse a PDF.
   app.post('/api/v1/ai-analysis', async (req, res) => {
-    const { districtId, topic } = req.body;
-    const territory = currentTerritories.find((t: any) => t.id === districtId) || currentTerritories[1]; // default El Porvenir
+    const { districtId } = req.body;
+    const territory =
+      currentTerritories.find((t: any) => t.id === districtId) || currentTerritories[1];
 
-    // Preferencia 1: capa agéntica. Recoge las métricas del motor con sus
-    // herramientas y devuelve el registro de evidencia junto al dictamen, así
-    // que es la única vía cuyas cifras son auditables.
+    const base = construirDictamenBase(territory, currentTerritories, currentFacilities);
+
     try {
       const agentRes = await fetch(`${AGENT_URL}/agent/dictamen`, {
         method: 'POST',
@@ -219,68 +207,32 @@ async function startServer() {
 
       if (agentRes.ok) {
         const payload = await agentRes.json();
-        return res.json({
-          success: true,
-          analysis: payload.analysis,
-          facts: payload.facts,
-          modelUsed: payload.modelUsed,
-          source: 'langchain-agent'
-        });
+        const dictamen: DictamenTecnico = {
+          ...base,
+          narrativa: payload.narrativa,
+          fuente: {
+            origen: 'langchain-agent',
+            modelo: payload.modelUsed,
+            motor: 'DigitalTwinEngine · ST-GNN-Trujillo-v1.4'
+          }
+        };
+        return res.json({ success: true, dictamen, facts: payload.facts });
       }
-      console.warn(`Agente respondió ${agentRes.status}; se intenta Gemini.`);
+      console.warn(`Agente respondió ${agentRes.status}; se usa la narrativa por reglas.`);
     } catch (err: any) {
-      // Servicio caído o sin clave: no es un error del usuario, se degrada.
       console.warn('Capa agéntica no disponible:', err?.message ?? err);
     }
 
-    if (ai) {
-      try {
-        const prompt = `Actúa como especialista epidemiólogo y analista de salud pública del "Gemelo Digital Urbano de Salud - Trujillo, Perú".
-Genera un dictamen técnico breve, profesional y estructurado para el distrito de ${territory.name}.
-Datos del distrito:
-- Población: ${territory.population.toLocaleString()} hab (Densidad: ${territory.density} hab/km2)
-- Índice de Vulnerabilidad SDOH: ${territory.sdoh.vulnerabilityIndex} (Pobreza: ${(territory.sdoh.povertyRate * 100).toFixed(0)}%, Déficit saneamiento: ${(territory.sdoh.sanitationDeficit * 100).toFixed(0)}%)
-- Accesibilidad Sanitaria: ${(territory.currentState.accessibilityIndex * 100).toFixed(0)}% (Tiempo promedio de viaje: ${territory.currentState.avgTravelTimeMinutes} min)
-- Demanda Mensual: ${territory.currentState.historicalDemand.toLocaleString()} atenciones (Capacidad: ${territory.currentState.healthcareCapacity.toLocaleString()})
-- Presión Asistencial: ${(territory.currentState.systemPressure * 100).toFixed(0)}%
-- Índice de Prioridad Territorial: ${territory.currentState.priorityIndex} (Categoría: ${territory.currentState.hotspotCategory})
-
-Incluye:
-1. Diagnóstico de la situación espacio-temporal.
-2. Recomendación prioritaria de intervención (Infraestructura / Accesibilidad / Equipamiento).
-3. Advertencia ética sobre no causalidad directa de las estimaciones.`;
-
-        const aiResponse = await ai.models.generateContent({
-          model: 'gemini-3.7-flash',
-          contents: prompt,
-        });
-
-        return res.json({
-          success: true,
-          analysis: aiResponse.text,
-          modelUsed: 'gemini-3.7-flash'
-        });
-      } catch (err: any) {
-        console.error('Gemini synthesis failed, fallback to rule-based synthesis:', err);
+    const dictamen: DictamenTecnico = {
+      ...base,
+      narrativa: narrativaPorReglas(base, territory),
+      fuente: {
+        origen: 'reglas',
+        modelo: 'Sistema experto basado en reglas',
+        motor: 'DigitalTwinEngine · ST-GNN-Trujillo-v1.4'
       }
-    }
-
-    // High quality deterministic public health fallback
-    const fallbackText = `### Dictamen Técnico Epidemiológico — ${territory.name}
-**1. Diagnóstico de Situación:**
-El distrito presenta un Índice de Prioridad Territorial de **${territory.currentState.priorityIndex} (${territory.currentState.hotspotCategory})**, impulsado por un déficit de accesibilidad del ${((1 - territory.currentState.accessibilityIndex) * 100).toFixed(0)}% y una sobrecarga asistencial del ${((territory.currentState.systemPressure - 1) * 100).toFixed(0)}%. Los determinantes sociales (pobreza ${(territory.sdoh.povertyRate * 100).toFixed(0)}% y falta de saneamiento ${(territory.sdoh.sanitationDeficit * 100).toFixed(0)}%) intensifican la concentración de casos prevenibles.
-
-**2. Recomendación de Intervención:**
-Se sugiere priorizar la instalación de un establecimiento de primer nivel (categoría I-3/I-4) o corredor vial sociosanitario que reduzca el tiempo medio de traslado a menos de 20 minutos, disminuyendo la presión asistencial sobre los hospitales centrales de Trujillo.
-
-*Nota ética: Los resultados son estimaciones del modelo predictivo espacio-temporal y constituyen una guía de apoyo a la decisión, no un veredicto causal irrefutable.*`;
-
-    res.json({
-      success: true,
-      analysis: fallbackText,
-      modelUsed: 'rule-based-expert-system',
-      source: 'fallback'
-    });
+    };
+    res.json({ success: true, dictamen });
   });
 
   // 11. Agente conversacional (proxy a FastAPI + LangChain)

@@ -15,7 +15,9 @@ viaja junto a la respuesta para que el investigador pueda auditarla.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field
 
 from langchain.agents import create_agent
 from langgraph.checkpoint.memory import InMemorySaver
@@ -55,29 +57,20 @@ ratios en porcentaje (0.88 → 88 %) e incluye siempre la unidad: atenciones/mes
 minutos, habitantes. Cuando una conclusión dependa de un supuesto del modelo, \
 márcalo como tal."""
 
-SYS_DICTAMEN = """Eres especialista en epidemiología y salud pública del Gemelo \
-Digital Urbano de Salud del Área Metropolitana de Trujillo, Perú.
+SYS_DICTAMEN = """Eres especialista en epidemiología y salud pública del Gemelo Digital Urbano de Salud del Área Metropolitana de Trujillo, Perú. Redactas la parte analítica de un dictamen técnico. Las tablas de indicadores ya existen: tú aportas la interpretación.
 
-Redacta un dictamen técnico breve y estructurado en Markdown con esta forma:
+Completa cada campo del esquema:
+- resumenEjecutivo: 3 a 4 frases que relacionen prioridad, presión asistencial, accesibilidad y determinantes sociales. Sin enumerar datos sueltos.
+- hallazgos: 3 a 5, ordenados de mayor a menor severidad, cada uno con cifras concretas.
+- recomendaciones: 3 a 5 acciones concretas y priorizadas (1 = más urgente), con tipo (Infraestructura, Capacidad operativa, Accesibilidad, Intersectorial o Vigilancia), justificación basada en los datos y plazo (Corto plazo (0–6 meses), Mediano plazo (6–18 meses), Largo plazo (más de 18 meses) o Continuo).
+- efectoRed: qué ocurre en los distritos vecinos, nombrándolos con su prioridad.
+- limitaciones: 3 a 4 limitaciones metodológicas del análisis.
 
-### Dictamen Técnico Epidemiológico — {distrito}
-**1. Diagnóstico de situación** — interpreta prioridad, presión asistencial, \
-accesibilidad y determinantes sociales. Relaciónalos entre sí; no los enumeres.
-**2. Recomendación de intervención** — una acción priorizada y concreta \
-(infraestructura, accesibilidad o equipamiento), justificada con los datos.
-**3. Efecto esperado en la red** — qué ocurre con los distritos vecinos.
+REGLA INVIOLABLE: usa exclusivamente las cifras del bloque DATOS. No inventes ni redondees a valores que no aparezcan ahí.
 
-Cierra con una nota de no causalidad en cursiva.
+FORMATO DE CIFRAS: índices y ratios en porcentaje (0.88 → 88 %, 1.36 → 136 %); recuentos con separador de miles (13 950 atenciones/mes). Sin Markdown.
 
-REGLA INVIOLABLE: usa exclusivamente las cifras del bloque DATOS. No inventes ni \
-redondees a valores que no aparezcan ahí. Si un dato no está, omite la afirmación.
-
-FORMATO DE CIFRAS: los índices y ratios llegan en escala 0-1; exprésalos en \
-porcentaje (0.88 → 88 %, 1.36 → 136 %). Los recuentos van con separador de miles \
-(13950 → 13 950 atenciones/mes). Nunca escribas un ratio crudo como "0.44 de pobreza".
-
-Perfil del lector: {rol}. Si es Gestor o Planificador, prioriza la decisión y su \
-coste de oportunidad; si es Investigador, explicita método y limitaciones."""
+Perfil del lector: {rol}. Si es Gestor o Planificador, prioriza la decisión y su coste de oportunidad; si es Investigador, explicita método y limitaciones."""
 
 
 # --------------------------------------------------------------------------- #
@@ -102,29 +95,51 @@ def recoger_hechos(district_id: int) -> dict[str, Any]:
     }
 
 
+class Hallazgo(BaseModel):
+    titulo: str
+    detalle: str
+    severidad: Literal["alta", "media", "baja"]
+
+
+class Recomendacion(BaseModel):
+    prioridad: int = Field(description="1 es la más urgente")
+    accion: str
+    tipo: str
+    justificacion: str
+    plazo: str
+
+
+class NarrativaDictamen(BaseModel):
+    """Parte redactada del dictamen. Las tablas numéricas las arma el motor."""
+
+    resumenEjecutivo: str
+    hallazgos: list[Hallazgo]
+    recomendaciones: list[Recomendacion]
+    efectoRed: str
+    limitaciones: list[str]
+
+
 def generar_dictamen(district_id: int, rol: str = "Investigador") -> dict[str, Any]:
-    """Dictamen técnico de un distrito, fundamentado en el motor del gemelo."""
+    """Narrativa estructurada del dictamen, fundamentada en el motor del gemelo."""
     facts = recoger_hechos(district_id)
     nombre = facts["distrito"]["distrito"]
 
-    respuesta = get_llm().invoke(
+    redactor = get_llm().with_structured_output(NarrativaDictamen)
+    narrativa: NarrativaDictamen = redactor.invoke(
         [
-            {
-                "role": "system",
-                "content": SYS_DICTAMEN.format(distrito=nombre, rol=rol),
-            },
+            {"role": "system", "content": SYS_DICTAMEN.format(rol=rol)},
             {
                 "role": "user",
                 "content": (
                     f"DATOS DEL MOTOR (única fuente válida de cifras):\n{facts}\n\n"
-                    f"Redacta el dictamen del distrito de {nombre}."
+                    f"Redacta la parte analítica del dictamen del distrito de {nombre}."
                 ),
             },
         ]
     )
 
     return {
-        "analysis": respuesta.content,
+        "narrativa": narrativa.model_dump(),
         "facts": facts,
         "modelUsed": model_name(),
     }

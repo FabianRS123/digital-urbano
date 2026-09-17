@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { FileSpreadsheet, Printer, Sparkles } from 'lucide-react';
 import { HealthFacility, SimulationResult, Territory } from '../../types';
+import { DictamenReport } from '../dictamen/DictamenReport';
+import { useDictamen } from '../dictamen/useDictamen';
 import { ViewContainer } from '../../components/layout/AppShell';
 import {
   Badge,
@@ -52,8 +54,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const [districtId, setDistrictId] = useState<number>(
     territories[1]?.id ?? territories[0].id,
   );
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiBrief, setAiBrief] = useState<string | null>(null);
+  const { dictamen, loading: dictamenLoading, error: dictamenError, generar, limpiar } =
+    useDictamen();
 
   const district =
     territories.find((t) => t.id === districtId) ?? territories[0];
@@ -73,26 +75,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     (a, b) => b.currentState.priorityIndex - a.currentState.priorityIndex,
   );
 
-  const handleGenerateAiBrief = async () => {
-    setAiLoading(true);
-    try {
-      const res = await fetch('/api/v1/ai-analysis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ districtId: district.id }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setAiBrief(data.analysis);
-    } catch (error) {
-      console.error(error);
-      setAiBrief(
-        `Dictamen para el distrito de ${district.name}: presenta un índice de prioridad territorial de ${formatPercent(district.currentState.priorityIndex)}. Se recomienda la expansión de la capacidad asistencial en el primer nivel de atención.`,
-      );
-    } finally {
-      setAiLoading(false);
-    }
-  };
 
   const handleExportCsv = () => {
     const headers = [
@@ -316,20 +298,21 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               <div className="print-hidden">
                 <Button
                   variant="primary"
-                  onClick={handleGenerateAiBrief}
-                  disabled={aiLoading}
+                  onClick={() => generar(district.id)}
+                  disabled={dictamenLoading}
                 >
                   <Sparkles className="size-3.5" />
-                  {aiLoading
-                    ? 'Sintetizando dictamen…'
-                    : 'Generar dictamen de política pública'}
+                  {dictamenLoading
+                    ? 'Generando dictamen técnico…'
+                    : 'Generar dictamen técnico'}
                 </Button>
+                {dictamenError && (
+                  <p className="mt-2 text-[11px] text-negative">{dictamenError}</p>
+                )}
               </div>
 
-              {aiBrief && (
-                <div className="whitespace-pre-line rounded-lg border border-primary/25 bg-primary/[0.05] p-4 text-[11.5px] leading-relaxed text-foreground">
-                  {aiBrief}
-                </div>
+              {dictamen?.distrito.id === district.id && (
+                <DictamenReport dictamen={dictamen} />
               )}
             </section>
           )}

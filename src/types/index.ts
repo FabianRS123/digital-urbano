@@ -207,3 +207,88 @@ export interface EquityMetric {
   facilitiesPer10kPop?: number;
   relativeErrorPct?: number;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Dictamen técnico estructurado                                                */
+/* -------------------------------------------------------------------------- */
+
+export type EstadoIndicador = 'critico' | 'alerta' | 'adecuado';
+
+export interface IndicadorDictamen {
+  grupo: string;
+  indicador: string;
+  valor: string;
+  referencia: string;
+  estado: EstadoIndicador;
+}
+
+export interface HallazgoDictamen {
+  titulo: string;
+  detalle: string;
+  severidad: 'alta' | 'media' | 'baja';
+}
+
+export interface RecomendacionDictamen {
+  prioridad: number;
+  accion: string;
+  tipo: string;
+  justificacion: string;
+  plazo: string;
+}
+
+/** Parte redactada (por el agente o por reglas). Nunca contiene las tablas. */
+export interface DictamenNarrativa {
+  resumenEjecutivo: string;
+  hallazgos: HallazgoDictamen[];
+  recomendaciones: RecomendacionDictamen[];
+  efectoRed: string;
+  limitaciones: string[];
+}
+
+export interface DictamenTecnico {
+  codigo: string;
+  fechaEmision: string;
+  periodo: string;
+  distrito: {
+    id: number;
+    nombre: string;
+    ubigeo: string;
+    provincia: string;
+    departamento: string;
+    poblacion: number;
+    areaKm2: number;
+  };
+  clasificacion: {
+    prioridad: number;
+    categoria: string;
+    quintil: number;
+    rankingMetropolitano: number;
+    totalDistritos: number;
+  };
+  /** Todo lo numérico sale del motor del gemelo, nunca del modelo de lenguaje. */
+  indicadores: IndicadorDictamen[];
+  factoresRiesgo: {
+    factor: string;
+    categoria: string;
+    peso: number;
+    puntuacion: number;
+    impacto: string;
+  }[];
+  ipress: {
+    nombre: string;
+    categoria: string;
+    estado: string;
+    horario: string;
+    capacidad: number;
+    demanda: number;
+    carga: number;
+  }[];
+  vecinos: { nombre: string; prioridad: number; categoria: string; presion: number }[];
+  narrativa: DictamenNarrativa;
+  notaEtica: string;
+  fuente: {
+    origen: 'langchain-agent' | 'reglas';
+    modelo: string;
+    motor: string;
+  };
+}
