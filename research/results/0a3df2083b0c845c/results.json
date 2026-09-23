@@ -1,0 +1,566 @@
+{
+  "version": "0a3df2083b0c845c",
+  "month": "2025-12",
+  "generatedAt": "2026-09-23T18:04:59.944Z",
+  "rq1": {
+    "baselineCases": 10,
+    "baselineMismatch": 0,
+    "scenarios": 40,
+    "scenarioMismatch": 0,
+    "metamorphicViolations": 0,
+    "pythonCases": 50,
+    "pythonMismatch": 0,
+    "pythonError": null
+  },
+  "fixtureDefects": [
+    {
+      "district": "Trujillo",
+      "stored": 0.32,
+      "recalculated": 0.22,
+      "discrepancy": 0.1,
+      "closureDeltaStored": 0.08,
+      "closureDeltaCorrected": 0.18
+    },
+    {
+      "district": "El Porvenir",
+      "stored": 0.88,
+      "recalculated": 0.75,
+      "discrepancy": 0.13,
+      "closureDeltaStored": -0.02,
+      "closureDeltaCorrected": 0.11
+    },
+    {
+      "district": "La Esperanza",
+      "stored": 0.74,
+      "recalculated": 0.61,
+      "discrepancy": 0.13,
+      "closureDeltaStored": 0.02,
+      "closureDeltaCorrected": 0.15
+    },
+    {
+      "district": "Florencia de Mora",
+      "stored": 0.92,
+      "recalculated": 0.82,
+      "discrepancy": 0.10000000000000009,
+      "closureDeltaStored": -0.03,
+      "closureDeltaCorrected": 0.07
+    },
+    {
+      "district": "Víctor Larco Herrera",
+      "stored": 0.16,
+      "recalculated": 0.12,
+      "discrepancy": 0.04000000000000001,
+      "closureDeltaStored": 0.12,
+      "closureDeltaCorrected": 0.16
+    },
+    {
+      "district": "Huanchaco",
+      "stored": 0.69,
+      "recalculated": 0.59,
+      "discrepancy": 0.09999999999999998,
+      "closureDeltaStored": 0.06,
+      "closureDeltaCorrected": 0.16
+    },
+    {
+      "district": "Moche",
+      "stored": 0.49,
+      "recalculated": 0.41,
+      "discrepancy": 0.08000000000000002,
+      "closureDeltaStored": 0.11,
+      "closureDeltaCorrected": 0.19
+    },
+    {
+      "district": "Laredo",
+      "stored": 0.56,
+      "recalculated": 0.47,
+      "discrepancy": 0.09000000000000008,
+      "closureDeltaStored": 0.11,
+      "closureDeltaCorrected": 0.2
+    },
+    {
+      "district": "Salaverry",
+      "stored": 0.44,
+      "recalculated": 0.37,
+      "discrepancy": 0.07,
+      "closureDeltaStored": 0.11,
+      "closureDeltaCorrected": 0.18
+    },
+    {
+      "district": "Poroto",
+      "stored": 0.72,
+      "recalculated": 0.63,
+      "discrepancy": 0.08999999999999997,
+      "closureDeltaStored": 0.06,
+      "closureDeltaCorrected": 0.15
+    }
+  ],
+  "concentration": [
+    {
+      "indicator": "accessDeficit",
+      "concentration": 0.030475019951229587,
+      "ciLow": -0.16252978461494072,
+      "ciHigh": 0.1400595116777541,
+      "q1": 0.22607347172751335,
+      "q5": 0.33053291903003346,
+      "q5OverQ1": 1.462059729982053,
+      "bootstrapReplicates": 5000
+    },
+    {
+      "indicator": "travelMinutes",
+      "concentration": 0.030686520347487756,
+      "ciLow": -0.2469689209044097,
+      "ciHigh": 0.20680943296837695,
+      "q1": 7.692671451206416,
+      "q5": 12.045554664599035,
+      "q5OverQ1": 1.5658480595463322,
+      "bootstrapReplicates": 5000
+    },
+    {
+      "indicator": "pressure",
+      "concentration": 0.0038566109458861852,
+      "ciLow": -0.020496322993835636,
+      "ciHigh": 0.0237005560891832,
+      "q1": 0.7316545179072392,
+      "q5": 0.7323440441776479,
+      "q5OverQ1": 1.0009424205735529,
+      "bootstrapReplicates": 5000
+    },
+    {
+      "indicator": "facilitiesPer10k",
+      "concentration": 0.03923489552510673,
+      "ciLow": -0.1579722854618123,
+      "ciHigh": 0.14401809197126614,
+      "q1": 0.5158176606996282,
+      "q5": 0.7954298937016415,
+      "q5OverQ1": 1.542075726183477,
+      "bootstrapReplicates": 5000
+    }
+  ],
+  "targeting": [
+    {
+      "intervention": "new_facility",
+      "propagation": true,
+      "rule": "Máxima prioridad",
+      "district": "Salaverry",
+      "deltaPriority": -0.003430701245132256,
+      "deltaAccessConcentration": 0.0006909516377135994,
+      "deltaPressureConcentration": 0.000905562499349033,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "new_facility",
+      "propagation": true,
+      "rule": "Máxima presión",
+      "district": "Poroto",
+      "deltaPriority": -0.000999976141813047,
+      "deltaAccessConcentration": -0.0028550019644273394,
+      "deltaPressureConcentration": -0.003051324746373041,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "new_facility",
+      "propagation": true,
+      "rule": "Máxima demanda",
+      "district": "Trujillo",
+      "deltaPriority": -0.027737828569206868,
+      "deltaAccessConcentration": 0.1906036261957902,
+      "deltaPressureConcentration": -0.0017388179189172792,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "new_facility",
+      "propagation": true,
+      "rule": "Máxima población",
+      "district": "Trujillo",
+      "deltaPriority": -0.027737828569206868,
+      "deltaAccessConcentration": 0.1906036261957902,
+      "deltaPressureConcentration": -0.0017388179189172792,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "new_facility",
+      "propagation": true,
+      "rule": "Óptimo ex post",
+      "district": "Trujillo",
+      "deltaPriority": -0.027737828569206868,
+      "deltaAccessConcentration": 0.1906036261957902,
+      "deltaPressureConcentration": -0.0017388179189172792,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "new_facility",
+      "propagation": true,
+      "rule": "Aleatoria (esperanza exacta)",
+      "district": "todos",
+      "deltaPriority": -0.013711317705337244,
+      "deltaAccessConcentration": 0.002512848821202884,
+      "deltaPressureConcentration": 0.0007053581102432372,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "new_facility",
+      "propagation": false,
+      "rule": "Máxima prioridad",
+      "district": "Salaverry",
+      "deltaPriority": -0.0025120373389461714,
+      "deltaAccessConcentration": 0.0006909516377135994,
+      "deltaPressureConcentration": 0.00014960090923676894,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "new_facility",
+      "propagation": false,
+      "rule": "Máxima presión",
+      "district": "Poroto",
+      "deltaPriority": -0.0004987951615596786,
+      "deltaAccessConcentration": -0.0028550019644273394,
+      "deltaPressureConcentration": -0.0033082510695181533,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "new_facility",
+      "propagation": false,
+      "rule": "Máxima demanda",
+      "district": "Trujillo",
+      "deltaPriority": -0.01908559522200043,
+      "deltaAccessConcentration": 0.1906036261957902,
+      "deltaPressureConcentration": 0.01225912274898211,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "new_facility",
+      "propagation": false,
+      "rule": "Máxima población",
+      "district": "Trujillo",
+      "deltaPriority": -0.01908559522200043,
+      "deltaAccessConcentration": 0.1906036261957902,
+      "deltaPressureConcentration": 0.01225912274898211,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "new_facility",
+      "propagation": false,
+      "rule": "Óptimo ex post",
+      "district": "La Esperanza",
+      "deltaPriority": -0.019826948617418072,
+      "deltaAccessConcentration": -0.07150766357320493,
+      "deltaPressureConcentration": -0.020973454188631502,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "new_facility",
+      "propagation": false,
+      "rule": "Aleatoria (esperanza exacta)",
+      "district": "todos",
+      "deltaPriority": -0.008042499383663498,
+      "deltaAccessConcentration": 0.002512848821202884,
+      "deltaPressureConcentration": -0.004418765825375382,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "expand_capacity",
+      "propagation": true,
+      "rule": "Máxima prioridad",
+      "district": "Salaverry",
+      "deltaPriority": -0.00251723312187907,
+      "deltaAccessConcentration": 0.00022739856262798952,
+      "deltaPressureConcentration": 0.0008088953708311752,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "expand_capacity",
+      "propagation": true,
+      "rule": "Máxima presión",
+      "district": "Poroto",
+      "deltaPriority": -0.0007862067868589229,
+      "deltaAccessConcentration": -0.0009497958409898644,
+      "deltaPressureConcentration": -0.0008324352928950063,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "expand_capacity",
+      "propagation": true,
+      "rule": "Máxima demanda",
+      "district": "Trujillo",
+      "deltaPriority": -0.027737828569206868,
+      "deltaAccessConcentration": 0.06848242039679286,
+      "deltaPressureConcentration": 0.047609039640450934,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "expand_capacity",
+      "propagation": true,
+      "rule": "Máxima población",
+      "district": "Trujillo",
+      "deltaPriority": -0.027737828569206868,
+      "deltaAccessConcentration": 0.06848242039679286,
+      "deltaPressureConcentration": 0.047609039640450934,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "expand_capacity",
+      "propagation": true,
+      "rule": "Óptimo ex post",
+      "district": "Trujillo",
+      "deltaPriority": -0.027737828569206868,
+      "deltaAccessConcentration": 0.06848242039679286,
+      "deltaPressureConcentration": 0.047609039640450934,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "expand_capacity",
+      "propagation": true,
+      "rule": "Aleatoria (esperanza exacta)",
+      "district": "todos",
+      "deltaPriority": -0.011464115077755594,
+      "deltaAccessConcentration": 0.0011914209412833277,
+      "deltaPressureConcentration": 0.00552890176889208,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "expand_capacity",
+      "propagation": false,
+      "rule": "Máxima prioridad",
+      "district": "Salaverry",
+      "deltaPriority": -0.0015985692156930131,
+      "deltaAccessConcentration": 0.00022739856262798952,
+      "deltaPressureConcentration": 0.00006065074789396441,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "expand_capacity",
+      "propagation": false,
+      "rule": "Máxima presión",
+      "district": "Poroto",
+      "deltaPriority": -0.00028502580660555443,
+      "deltaAccessConcentration": -0.0009497958409898644,
+      "deltaPressureConcentration": -0.0010959753547483686,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "expand_capacity",
+      "propagation": false,
+      "rule": "Máxima demanda",
+      "district": "Trujillo",
+      "deltaPriority": -0.01908559522200043,
+      "deltaAccessConcentration": 0.06848242039679286,
+      "deltaPressureConcentration": 0.060271952959858544,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "expand_capacity",
+      "propagation": false,
+      "rule": "Máxima población",
+      "district": "Trujillo",
+      "deltaPriority": -0.01908559522200043,
+      "deltaAccessConcentration": 0.06848242039679286,
+      "deltaPressureConcentration": 0.060271952959858544,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "expand_capacity",
+      "propagation": false,
+      "rule": "Óptimo ex post",
+      "district": "Trujillo",
+      "deltaPriority": -0.01908559522200043,
+      "deltaAccessConcentration": 0.06848242039679286,
+      "deltaPressureConcentration": 0.060271952959858544,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "expand_capacity",
+      "propagation": false,
+      "rule": "Aleatoria (esperanza exacta)",
+      "district": "todos",
+      "deltaPriority": -0.0057952967560818466,
+      "deltaAccessConcentration": 0.0011914209412833277,
+      "deltaPressureConcentration": 0.0002814668423606004,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "improve_access",
+      "propagation": true,
+      "rule": "Máxima prioridad",
+      "district": "Salaverry",
+      "deltaPriority": -0.0009134681232531305,
+      "deltaAccessConcentration": 0.0005012055167947782,
+      "deltaPressureConcentration": 0.00022904677188440026,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "improve_access",
+      "propagation": true,
+      "rule": "Máxima presión",
+      "district": "Poroto",
+      "deltaPriority": -0.0001781411291284507,
+      "deltaAccessConcentration": -0.0020801071894693823,
+      "deltaPressureConcentration": 0.00006494402812062816,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "improve_access",
+      "propagation": true,
+      "rule": "Máxima demanda",
+      "district": "Trujillo",
+      "deltaPriority": -0.018001823825845836,
+      "deltaAccessConcentration": 0.16911030289177176,
+      "deltaPressureConcentration": -0.0037794658704874973,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "improve_access",
+      "propagation": true,
+      "rule": "Máxima población",
+      "district": "Trujillo",
+      "deltaPriority": -0.018001823825845836,
+      "deltaAccessConcentration": 0.16911030289177176,
+      "deltaPressureConcentration": -0.0037794658704874973,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "improve_access",
+      "propagation": true,
+      "rule": "Óptimo ex post",
+      "district": "Trujillo",
+      "deltaPriority": -0.018001823825845836,
+      "deltaAccessConcentration": 0.16911030289177176,
+      "deltaPressureConcentration": -0.0037794658704874973,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "improve_access",
+      "propagation": true,
+      "rule": "Aleatoria (esperanza exacta)",
+      "district": "todos",
+      "deltaPriority": -0.005331255020160167,
+      "deltaAccessConcentration": 0.004185223815902961,
+      "deltaPressureConcentration": 0.0015783533519247994,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "improve_access",
+      "propagation": false,
+      "rule": "Máxima prioridad",
+      "district": "Salaverry",
+      "deltaPriority": -0.0009134681232531305,
+      "deltaAccessConcentration": 0.0005012055167947782,
+      "deltaPressureConcentration": 0.0000013425203913008943,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "improve_access",
+      "propagation": false,
+      "rule": "Máxima presión",
+      "district": "Poroto",
+      "deltaPriority": -0.0001781411291284507,
+      "deltaAccessConcentration": -0.0020801071894693823,
+      "deltaPressureConcentration": -0.00001695022691383663,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "improve_access",
+      "propagation": false,
+      "rule": "Máxima demanda",
+      "district": "Trujillo",
+      "deltaPriority": -0.015904662685000348,
+      "deltaAccessConcentration": 0.16911030289177176,
+      "deltaPressureConcentration": 0.00048181674355918247,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "improve_access",
+      "propagation": false,
+      "rule": "Máxima población",
+      "district": "Trujillo",
+      "deltaPriority": -0.015904662685000348,
+      "deltaAccessConcentration": 0.16911030289177176,
+      "deltaPressureConcentration": 0.00048181674355918247,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "improve_access",
+      "propagation": false,
+      "rule": "Óptimo ex post",
+      "district": "Trujillo",
+      "deltaPriority": -0.015904662685000348,
+      "deltaAccessConcentration": 0.16911030289177176,
+      "deltaPressureConcentration": 0.00048181674355918247,
+      "deltaHighPopulation": 0
+    },
+    {
+      "intervention": "improve_access",
+      "propagation": false,
+      "rule": "Aleatoria (esperanza exacta)",
+      "district": "todos",
+      "deltaPriority": -0.0043977469035166,
+      "deltaAccessConcentration": 0.004185223815902961,
+      "deltaPressureConcentration": 0.0000343179398880622,
+      "deltaHighPopulation": 0
+    }
+  ],
+  "sensitivity": [
+    {
+      "alpha": 20,
+      "draws": 10000,
+      "meanKendallTau": 0.9279511111111529,
+      "topDistrictStableShare": 0.6714,
+      "categoryChangeShare": 0.01409
+    },
+    {
+      "alpha": 50,
+      "draws": 10000,
+      "meanKendallTau": 0.9529911111111367,
+      "topDistrictStableShare": 0.7825,
+      "categoryChangeShare": 0.0029
+    },
+    {
+      "alpha": 100,
+      "draws": 10000,
+      "meanKendallTau": 0.9655333333333516,
+      "topDistrictStableShare": 0.8802,
+      "categoryChangeShare": 0.00022
+    }
+  ],
+  "textCheck": {
+    "outputsEvaluated": 10,
+    "method": "Narrativas por reglas comparadas con los hechos SIS y prioridad que también se entregan al agente; fuentes SIS e INEI verificadas. No incluye respuestas libres del agente.",
+    "matches": 10
+  },
+  "sourceReferences": [
+    {
+      "id": "population",
+      "pageUrl": "https://www.gob.pe/institucion/inei/informes-publicaciones/6894980-peru-",
+      "resourceUrl": "https://cdn.www.gob.pe/uploads/document/file/8261096/6894980-peru-poblacion-total-proyectada-al-30-de-junio-de-cada-ano-segun-departamento-provincia-y-distrito-2018-2026.xlsx?v=1768402069",
+      "period": "2018–2026",
+      "fetchedAt": "2026-09-23T17:43:25.854Z"
+    },
+    {
+      "id": "poverty",
+      "pageUrl": "https://www.gob.pe/institucion/inei/informes-publicaciones/3204872-mapa-de-pobreza-provincial-y-distrital-2018",
+      "resourceUrl": "https://cdn.www.gob.pe/uploads/document/file/3340937/Anexo%20Estad%C3%ADstico.xlsx?v=1656708741",
+      "period": "2018",
+      "fetchedAt": "2026-09-23T17:43:27.751Z"
+    },
+    {
+      "id": "boundaries",
+      "pageUrl": "https://geosdot.servicios.gob.pe/visor/",
+      "resourceUrl": "https://geosdot.servicios.gob.pe/geoserver/geoportal/ows?service=WFS&version=2.0.0&request=GetFeature&typeNames=geoportal:v_distritos_2023&outputFormat=application/json&srsName=EPSG:4326&CQL_FILTER=ubigeo%20LIKE%20'1301%25'",
+      "period": "2023",
+      "fetchedAt": "2026-09-23T17:56:34.596Z"
+    },
+    {
+      "id": "renipress",
+      "pageUrl": "https://www.datosabiertos.gob.pe/dataset/registro-nacional-de-entidades-prestadoras-de-servicios-de-salud-renipress",
+      "resourceUrl": "https://www.datosabiertos.gob.pe/sites/default/files/RENIPRESS_31-08-2026.csv",
+      "period": "2026-08",
+      "fetchedAt": "2026-09-23T17:44:12.560Z"
+    },
+    {
+      "id": "sis",
+      "pageUrl": "https://www.datosabiertos.gob.pe/dataset/datos-de-atenciones-realizadas-los-asegurados-sis",
+      "resourceUrl": "https://www.datosabiertos.gob.pe/sites/default/files/OPENDATA_DS_01_2025_07_12_ATENCIONES.zip",
+      "period": "2024-01–2025-12",
+      "fetchedAt": "2026-09-23T18:02:46.918Z"
+    }
+  ]
+}

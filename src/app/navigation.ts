@@ -84,7 +84,7 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         id: 'predictions',
         label: 'Proyección estacional',
-        description: 'Proyección espacio-temporal de demanda',
+        description: 'Consultas SIS y persistencia estacional',
         icon: TrendingUp,
       },
       {
@@ -131,14 +131,14 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         id: 'equity',
-        label: 'Equidad y fairness',
-        description: 'Auditoría de sesgos del modelo',
+        label: 'Equidad territorial',
+        description: 'Brechas entre quintiles de pobreza',
         icon: Scale,
       },
       {
         id: 'models',
-        label: 'Modelos de IA',
-        description: 'Benchmarking de arquitecturas predictivas',
+        label: 'Referencias predictivas',
+        description: 'Errores temporales de dos reglas simples',
         icon: Brain,
       },
       {

@@ -73,6 +73,7 @@ export const SavedScenariosView: React.FC<SavedScenariosViewProps> = ({
                     <h3 className="mt-1.5 text-[13px] font-semibold leading-snug text-foreground">
                       {scenario.scenarioName}
                     </h3>
+                    {scenario.monthKey && <p className="text-[10px] text-muted-foreground">SIS {scenario.monthKey} · versión {scenario.datasetVersion}</p>}
                   </div>
                   <Badge
                     tone={

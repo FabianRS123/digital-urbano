@@ -85,7 +85,7 @@ export function buildModelView(snapshot: RealSnapshot, month = snapshot.months.a
     const currentMonthlyDemand = history?.[month] ?? null;
     const capacityMethod = monthlyCapacity === null ? 'Sin referencia válida' : directCapacity.has(facility.code)
       ? 'Percentil 95 de consultas SIS en los últimos 12 meses con al menos 6 meses válidos'
-      : 'Mediana de IPRESS públicas de igual categoría con cobertura suficiente';
+      : 'Mediana de IPRESS de igual categoría con cobertura suficiente';
     return { ...facility, category: facility.category as HealthFacility['category'],
       type: facility.type as HealthFacility['type'],
       operationalStatus: facility.operationalStatus as HealthFacility['operationalStatus'],
@@ -148,7 +148,7 @@ export function buildModelView(snapshot: RealSnapshot, month = snapshot.months.a
       activeFacilitiesCount: facilities.filter((f) => f.districtId === district.id && f.operationalStatus === 'Operativo').length,
       facilitiesByCategory: byCategory, neighborIds: district.neighborIds,
       currentState: { monthKey: month, historicalDemand: item.demand, projectedDemand: item.projected,
-        demandUncertaintyLower: item.projected, demandUncertaintyUpper: item.projected,
+        demandUncertaintyLower: null, demandUncertaintyUpper: null,
         accessibilityIndex: item.access, avgTravelTimeMinutes: item.travelMinutes,
         avgDistanceKm: item.distanceKm, healthcareCapacity: item.capacity,
         systemPressure: item.pressure, priorityIndex: priority, hotspotCategory: category,

@@ -99,7 +99,7 @@ export const InterventionSimulator: React.FC<InterventionSimulatorProps> = ({
   const [scenarioName, setScenarioName] = useState('');
 
   const [newFacilityName, setNewFacilityName] = useState(
-    'Puesto de Salud Alto Trujillo II',
+    'Centro de salud propuesto',
   );
   const [newFacilityCategory, setNewFacilityCategory] = useState('I-3');
   const [newFacilityCapacity, setNewFacilityCapacity] = useState(2500);
@@ -360,10 +360,10 @@ export const InterventionSimulator: React.FC<InterventionSimulatorProps> = ({
                   max={50}
                   step={5}
                   onChange={setTravelTimeReductionPct}
-                  hint={`El tiempo medio pasa de ${targetDistrict.currentState.avgTravelTimeMinutes} min a ${(
-                    targetDistrict.currentState.avgTravelTimeMinutes *
-                    (1 - travelTimeReductionPct / 100)
-                  ).toFixed(1)} min.`}
+                  hint={targetDistrict.currentState.avgTravelTimeMinutes === null ? 'Tiempo de viaje sin dato' :
+                    `El tiempo medio pasa de ${targetDistrict.currentState.avgTravelTimeMinutes.toFixed(1)} min a ${(
+                      targetDistrict.currentState.avgTravelTimeMinutes * (1 - travelTimeReductionPct / 100)
+                    ).toFixed(1)} min.`}
                 />
               )}
 
@@ -429,6 +429,7 @@ export const InterventionSimulator: React.FC<InterventionSimulatorProps> = ({
             />
           ) : (
             <CardBody className="animate-fade-rise space-y-4 pt-4">
+              <p className="text-[11px] text-muted-foreground">Consultas SIS {result.monthKey ?? monthKey} · versión {result.datasetVersion ?? datasetVersion} · efectos hipotéticos del simulador</p>
               <Callout
                 icon={<Check className="size-4" />}
                 title="Dictamen del escenario"
@@ -464,7 +465,8 @@ export const InterventionSimulator: React.FC<InterventionSimulatorProps> = ({
                     result.deltas.travelTimeSavedMinutes > 0 ? '−' : '+'
                   }${Math.abs(result.deltas.travelTimeSavedMinutes).toFixed(1)} min`}
                   deltaTone={deltaTone(-result.deltas.travelTimeSavedMinutes)}
-                  hint={`antes ${result.before.avgTravelTimeMinutes} min`}
+                  hint={result.before.avgTravelTimeMinutes === null ? 'antes: Sin dato' :
+                    `antes ${result.before.avgTravelTimeMinutes.toFixed(1)} min`}
                 />
                 <StatCard
                   label="Presión asistencial"
@@ -480,7 +482,7 @@ export const InterventionSimulator: React.FC<InterventionSimulatorProps> = ({
               {result.affectedNeighbors.length > 0 && (
                 <div className="rounded-lg border border-border bg-surface-sunken/70 p-4">
                   <h4 className="text-[11.5px] font-semibold text-foreground">
-                    Efecto en distritos limítrofes (grafo GNN)
+                    Efecto supuesto en distritos limítrofes
                   </h4>
                   <ul className="mt-2.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {result.affectedNeighbors.map((neighbor) => (

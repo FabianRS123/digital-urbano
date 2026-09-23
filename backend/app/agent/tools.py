@@ -133,9 +133,8 @@ def territory_detail(district_id: int) -> dict:
 
 @tool
 def get_territory(district_id: int) -> dict:
-    """Ficha completa de un distrito por su ID numérico: determinantes sociales
-    (pobreza, agua, saneamiento, hacinamiento), demanda y capacidad asistencial,
-    accesibilidad geográfica, índice de prioridad e IDs de distritos vecinos.
+    """Ficha de un distrito por ID: pobreza INEI 2018; otros determinantes sin
+    dato, consultas externas SIS, capacidad y acceso estimados, prioridad derivada.
 
     IDs: 1 Trujillo, 2 El Porvenir, 3 La Esperanza, 4 Florencia de Mora,
     5 Víctor Larco Herrera, 6 Huanchaco, 7 Moche, 8 Laredo, 9 Salaverry,
@@ -160,7 +159,7 @@ def list_facilities(
     capacidad, demanda y carga asistencial.
 
     Filtros opcionales: district_id (1-10), category ('I-1' a 'III-1'),
-    status ('Operativo', 'Sobrecargado', 'Mantenimiento', 'Cierre Temporal')."""
+    status (estado publicado en RENIPRESS, por ejemplo 'Operativo')."""
     data = _get("/facilities", districtId=district_id, category=category, status=status)
     return [_slim_facility(f) for f in data["data"]]
 
@@ -222,7 +221,7 @@ class InterventionArgs(BaseModel):
     target_facility_id: Optional[str] = Field(
         default=None,
         description=(
-            "Solo para temporary_closure: ID de la IPRESS, formato 'fac-5'. "
+            "Solo para temporary_closure: código IPRESS de ocho dígitos. "
             "Si se omite, se simula una contingencia del 40% de la capacidad distrital."
         ),
     )
@@ -251,6 +250,8 @@ def simulate_intervention(**kwargs: Any) -> dict:
         if kwargs.get(snake) is not None:
             params[camel] = kwargs[snake]
 
+    bootstrap = _get('/bootstrap')
+
     try:
         r = _twin.post(
             "/simulate",
@@ -258,6 +259,8 @@ def simulate_intervention(**kwargs: Any) -> dict:
                 "params": params,
                 "scenarioName": kwargs.get("scenario_name", "Escenario del agente"),
                 "authorRole": "Agente LangChain",
+                "datasetVersion": bootstrap["version"],
+                "monthKey": bootstrap["month"],
             },
         )
         r.raise_for_status()

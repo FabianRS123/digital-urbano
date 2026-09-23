@@ -21,7 +21,7 @@ pnpm lint
 pnpm build
 ```
 
-`data:sync` descarga ZIP de SIS a `.cache/sis`, los procesa por streaming y solo guarda agregados por mes, distrito e IPRESS. `research:evaluate` trabaja con la versión local y escribe CSV, JSON e informe en `research/results/<versión>/`. Se puede exigir una versión con `pnpm research:evaluate -- --version=<versión>`.
+`data:sync` descarga ZIP de SIS a `.cache/sis` y los procesa por streaming. La copia publicada guarda solo agregados por mes, distrito e IPRESS; los ZIP quedan en caché local, ignorada por Git, para comprobar cambios y reintentar. `research:evaluate` trabaja con la versión local y escribe CSV, JSON e informe en `research/results/<versión>/`. Se puede exigir una versión con `pnpm research:evaluate -- --version=<versión>`.
 
 ## Fuentes y periodos
 
@@ -44,6 +44,15 @@ Los UBIGEO se guardan como cadenas de seis dígitos y los códigos IPRESS como c
 - **Prioridad**: combinación de pobreza, presión `consultas SIS / capacidad estimada`, déficit de accesibilidad y presión de distritos colindantes. La vecindad proviene de geometrías Polygon/MultiPolygon. La fórmula y sus pesos están en `src/lib/simulationEngine.ts`.
 - **Pronóstico**: persistencia estacional del mismo mes del año anterior, con último mes observado como respaldo. Se compara retrospectivamente con persistencia del último mes. No hay una ST-GNN entrenada.
 - **Intervenciones**: nueva IPRESS, ampliación, mejora de acceso y cierre temporal. Sus cambios en acceso, capacidad y presión de vecinos son supuestos fijos, no efectos causales medidos.
+
+| Intervención | Supuesto local por defecto | Presión de cada vecino |
+|---|---|---|
+| Nueva IPRESS | +2 200 consultas de referencia, +0,24 de acceso, tiempo × 0,70 | −6,5 % |
+| Ampliación | +35 % de referencia, +0,08 de acceso, tiempo × 0,88 | −6,5 % |
+| Mejora de acceso | −25 % de tiempo, +0,175 de acceso | −2,0 % |
+| Cierre temporal | −40 % de referencia, −0,20 de acceso, tiempo × 1,35 | +14,2 % |
+
+Los topes y mínimos del motor están en `src/lib/simulationEngine.ts`. Estos valores proceden del prototipo del artículo y carecen de calibración causal con la nueva base oficial.
 
 La API `GET /api/v1/bootstrap?month=AAAA-MM` entrega territorios, catálogo RENIPRESS, meses SIS, fuentes, versión y métricas calculadas. `POST /api/v1/data-sources/sync` inicia una única sincronización; `GET` a la misma ruta informa el progreso. Las operaciones de simulación y dictamen deben enviar `datasetVersion` y `monthKey`; si cambió la versión, la API solicita recargar.
 

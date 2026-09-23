@@ -110,6 +110,8 @@ export interface InterventionParams {
 
 export interface SimulationResult {
   id: string;
+  datasetVersion?: string;
+  monthKey?: string;
   scenarioName: string;
   createdAt: string;
   authorRole: string;
@@ -291,6 +293,7 @@ export interface DictamenTecnico {
     impacto: string;
   }[];
   ipress: {
+    codigo: string;
     nombre: string;
     categoria: string;
     estado: string;

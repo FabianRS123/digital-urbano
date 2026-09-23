@@ -3,7 +3,7 @@ import { nextMonth, percentile, seasonalForecast } from './officialModel';
 
 export interface SpatioTemporalPredictionPoint {
   monthKey: string; label: string; historicalValue: number | null;
-  predictedValue: number; lowerConfidence: number; upperConfidence: number;
+  predictedValue: number; lowerConfidence: number | null; upperConfidence: number | null;
   lower95?: number; upper95?: number; isForecast: boolean;
 }
 
@@ -17,8 +17,8 @@ export function generateDistrictTimeSeries(district: Territory, monthsHorizon = 
     const prediction = seasonalForecast(Object.fromEntries(months.slice(0, i).map((m) => [m, history[m]])), months[i]);
     if (prediction !== null) errors.push(Math.abs(prediction - history[months[i]]));
   }
-  const band90 = percentile(errors, 0.9) ?? 0;
-  const band95 = percentile(errors, 0.95) ?? band90;
+  const band90 = percentile(errors, 0.9);
+  const band95 = percentile(errors, 0.95);
   const label = (month: string) => new Intl.DateTimeFormat('es-PE', { month: 'short', year: 'numeric', timeZone: 'UTC' })
     .format(new Date(`${month}-01T00:00:00Z`));
   const actual = months.slice(-12).map((month) => ({ monthKey: month, label: label(month),
@@ -28,8 +28,8 @@ export function generateDistrictTimeSeries(district: Territory, monthsHorizon = 
     const month = nextMonth(months.at(-1)!, i + 1);
     const value = seasonalForecast(history, month) ?? history[months.at(-1)!];
     return { monthKey: month, label: label(month), historicalValue: null, predictedValue: value,
-      lowerConfidence: Math.max(0, Math.round(value - band90)), upperConfidence: Math.round(value + band90),
-      lower95: Math.max(0, Math.round(value - band95)), upper95: Math.round(value + band95), isForecast: true };
+      lowerConfidence: band90 === null ? null : Math.max(0, Math.round(value - band90)), upperConfidence: band90 === null ? null : Math.round(value + band90),
+      lower95: band95 === null ? undefined : Math.max(0, Math.round(value - band95)), upper95: band95 === null ? undefined : Math.round(value + band95), isForecast: true };
   });
   return [...actual, ...forecast];
 }

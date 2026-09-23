@@ -223,7 +223,7 @@ export const DictamenReport: React.FC<{ dictamen: DictamenTecnico }> = ({ dictam
               </Thead>
               <Tbody>
                 {d.ipress.map((f) => (
-                  <Tr key={f.nombre}>
+                  <Tr key={f.codigo}>
                     <Td className="font-medium">{f.nombre}</Td>
                     <Td align="center" className="font-mono text-[11px]">{f.categoria}</Td>
                     <Td className="text-muted-foreground">{f.estado} · {f.horario}</Td>

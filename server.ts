@@ -48,7 +48,10 @@ async function startServer() {
   let savedSimulations: any[] = [];
 
   app.get('/api/v1/bootstrap', (req, res) => {
-    try { res.json(currentView(req.query.month as string | undefined)); }
+    const month = req.query.month as string | undefined;
+    if (month && snapshot && !snapshot.months.includes(month))
+      return res.status(400).json({ error: `Mes sin atenciones SIS: ${month}` });
+    try { res.json(currentView(month)); }
     catch (error) { res.status(503).json({ error: String(error), syncState }); }
   });
   app.get('/api/v1/data-sources/sync', (_req, res) => res.json(syncState));

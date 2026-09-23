@@ -68,7 +68,7 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
   // así no depende de pintar encima con el color del fondo.
   const timeSeries = generateDistrictTimeSeries(district, 6).map((pt) => ({
     ...pt,
-    banda: [pt.lowerConfidence, pt.upperConfidence] as [number, number],
+    banda: [pt.lowerConfidence, pt.upperConfidence] as [number | null, number | null],
   }));
 
   const { dictamen, loading: dictamenLoading, error: dictamenError, generar, limpiar } =
@@ -102,7 +102,7 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
       <PageHeader
         eyebrow="Panorama"
         title={`Distrito de ${district.name}`}
-        description={`Provincia de ${district.province}, ${district.department} · ${district.areaKm2} km² · ${formatNumber(district.density)} hab/km²`}
+        description={`Provincia de ${district.province}, ${district.department} · ${district.areaKm2.toFixed(1)} km² · ${formatNumber(district.density)} hab/km²`}
         actions={
           <>
             <Badge className={getRiskBadgeClass(score)} mono>
@@ -135,7 +135,7 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
 
       <Card><CardBody className="space-y-1 p-4 text-xs text-muted-foreground">
         <strong className="text-foreground">Procedencia · versión {datasetVersion} · mes SIS {district.currentState.monthKey}</strong>
-        <p>Pobreza INEI 2018: intervalo publicado {district.povertyInterval?.[0] ?? 'Sin dato'} % – {district.povertyInterval?.[1] ?? 'Sin dato'} %; punto medio usado en el modelo {formatPercent(district.sdoh.povertyRate)}.</p>
+        <p>Pobreza INEI 2018: intervalo publicado {district.povertyInterval?.[0]?.toFixed(1) ?? 'Sin dato'} % – {district.povertyInterval?.[1]?.toFixed(1) ?? 'Sin dato'} %; punto medio usado en el modelo {formatPercent(district.sdoh.povertyRate, 1)}.</p>
         {Object.entries(district.provenance ?? {}).map(([indicator, provenance]) => <p key={indicator}>
           {indicator}: {provenance.origin ?? 'Sin dato'} · {provenance.period} · {provenance.method ?? ''} ·{' '}
           {(provenance.sourceIds ?? []).map((id) => { const source = sources.find((item) => item.id === id);
@@ -219,7 +219,7 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
                   />
                   <Area
                     dataKey="banda"
-                    name="Banda de incertidumbre"
+                    name="Rango empírico P90 del error retrospectivo"
                     stroke="none"
                     fill={chart.series[2]}
                     fillOpacity={0.14}

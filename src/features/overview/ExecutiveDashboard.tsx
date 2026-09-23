@@ -40,6 +40,7 @@ import {
   getRiskLevel,
 } from '../../lib/risk';
 import { cn } from '../../lib/utils';
+import { nextMonth } from '../../lib/officialModel';
 
 interface ExecutiveDashboardProps {
   months: string[];
@@ -61,6 +62,9 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   currentMonthLabel,
 }) => {
   const chart = useChartTheme();
+  const forecastMonth = nextMonth(territories[0].currentState.monthKey);
+  const previousYear = `${Number(forecastMonth.slice(0, 4)) - 1}${forecastMonth.slice(4)}`;
+  const hasSeasonalReference = territories.every((territory) => territory.history?.[previousYear] !== undefined);
 
   const totalPopulation = territories.reduce((s, t) => s + t.population, 0);
   const totalDemand = territories.every((t) => t.currentState.historicalDemand !== null)
@@ -119,7 +123,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         <StatCard
           label="Consultas proyectadas"
           value={formatNumber(totalProjected)}
-          hint="Persistencia estacional t+1"
+          hint={hasSeasonalReference ? 'Persistencia estacional t+1' : 'Persistencia del último mes (respaldo)'}
         />
         <StatCard
           label="Distritos críticos"

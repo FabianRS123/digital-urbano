@@ -92,10 +92,10 @@ export class DigitalTwinEngine {
       if (!nTerr) return null;
       let pressureDeltaPct = 0;
       if (params.type === 'new_facility' || params.type === 'expand_capacity') {
-        // Relief of 4% to 9%
+        // Supuesto fijo del prototipo: alivio de 6,5 % en cada vecino.
         pressureDeltaPct = -6.5;
       } else if (params.type === 'temporary_closure') {
-        // Increase of 12% to 18%
+        // Supuesto fijo del prototipo: aumento de 14,2 % en cada vecino.
         pressureDeltaPct = +14.2;
       } else {
         pressureDeltaPct = -2.0;

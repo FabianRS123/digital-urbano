@@ -63,8 +63,18 @@ function sourceRecord(id: keyof typeof OFFICIAL_SOURCES, count: number, rejected
   return { ...OFFICIAL_SOURCES[id], resourceUrls: id === 'sis' ? SIS_ARCHIVES : [OFFICIAL_SOURCES[id].resourceUrl], fetchedAt: new Date().toISOString(), recordsCount: count,
     rejectedCount: rejected, status: 'Sincronizado', etag };
 }
+async function unchangedSource(previous: RealSnapshot | null, id: keyof typeof OFFICIAL_SOURCES): Promise<SourceRecord | null> {
+  const record = previous?.sources.find((source) => source.id === id);
+  if (!record?.etag) return null;
+  try {
+    const response = await fetch(OFFICIAL_SOURCES[id].resourceUrl, { method: 'HEAD', signal: AbortSignal.timeout(30_000) });
+    return response.ok && response.headers.get('etag') === record.etag ? record : null;
+  } catch { return null; }
+}
 
-async function loadPopulation() {
+async function loadPopulation(previous: RealSnapshot | null) {
+  const cached = await unchangedSource(previous, 'population');
+  if (cached) return { data: new Map(previous!.districts.map((district) => [district.code, district.populationByYear] as const)), source: cached };
   const { bytes, etag } = await getBytes(OFFICIAL_SOURCES.population.resourceUrl);
   const book = new ExcelJS.Workbook(); await book.xlsx.load(bytes as any);
   const result = new Map<string, Record<string, number>>();
@@ -86,7 +96,9 @@ async function loadPopulation() {
   return { data: result, source: sourceRecord('population', result.size, 0, etag) };
 }
 
-async function loadPoverty() {
+async function loadPoverty(previous: RealSnapshot | null) {
+  const cached = await unchangedSource(previous, 'poverty');
+  if (cached) return { data: new Map(previous!.districts.map((district) => [district.code, district.povertyInterval] as const)), source: cached };
   const { bytes, etag } = await getBytes(OFFICIAL_SOURCES.poverty.resourceUrl);
   const book = new ExcelJS.Workbook(); await book.xlsx.load(bytes as any);
   const sheet = book.getWorksheet('Anexo2');
@@ -102,7 +114,9 @@ async function loadPoverty() {
   return { data: result, source: sourceRecord('poverty', result.size, 0, etag) };
 }
 
-async function loadBoundaries() {
+async function loadBoundaries(previous: RealSnapshot | null) {
+  const cached = await unchangedSource(previous, 'boundaries');
+  if (cached) return { data: new Map(previous!.districts.map((district) => [district.code, district.geometry] as const)), source: cached };
   const { bytes, etag } = await getBytes(OFFICIAL_SOURCES.boundaries.resourceUrl);
   const collection = JSON.parse(bytes.toString('utf8')) as GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, { ubigeo: string }>;
   const result = new Map<string, GeoJSON.Polygon | GeoJSON.MultiPolygon>();
@@ -114,7 +128,11 @@ async function loadBoundaries() {
   return { data: result, source: sourceRecord('boundaries', result.size, 0, etag) };
 }
 
-async function loadFacilities() {
+async function loadFacilities(previous: RealSnapshot | null) {
+  const cached = await unchangedSource(previous, 'renipress');
+  if (cached) return { data: previous!.facilities, source: cached,
+    invalidCoordinates: previous!.facilities.filter((facility) => facility.latitude === null).length,
+    duplicates: cached.rejectedCount };
   const { bytes, etag } = await getBytes(OFFICIAL_SOURCES.renipress.resourceUrl);
   const records = parseCsvSync(bytes.toString('utf8'), { columns: true, bom: true, delimiter: ';',
     skip_empty_lines: true, relax_quotes: true, relax_column_count: true }) as Record<string, string>[];
@@ -252,9 +270,10 @@ function meanPoint(geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon): { lat: num
 }
 
 export async function buildOfficialSnapshot(onProgress?: (progress: string) => void): Promise<RealSnapshot> {
+  const previous = readOfficialSnapshot();
   onProgress?.('Leyendo fuentes INEI y RENIPRESS');
   const [population, poverty, boundaries, facilities] = await Promise.all([
-    loadPopulation(), loadPoverty(), loadBoundaries(), loadFacilities(),
+    loadPopulation(previous), loadPoverty(previous), loadBoundaries(previous), loadFacilities(previous),
   ]);
   const sis = await loadSis(onProgress);
   const months = [...new Set([...sis.history.values()].flatMap((items) => [...items.keys()]))].sort();
