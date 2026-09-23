@@ -63,10 +63,11 @@ Completa cada campo del esquema:
 - resumenEjecutivo: 3 a 4 frases que relacionen prioridad, presión asistencial, accesibilidad y determinantes sociales. Sin enumerar datos sueltos.
 - hallazgos: 3 a 5, ordenados de mayor a menor severidad, cada uno con cifras concretas.
 - recomendaciones: 3 a 5 acciones concretas y priorizadas (1 = más urgente), con tipo (Infraestructura, Capacidad operativa, Accesibilidad, Intersectorial o Vigilancia), justificación basada en los datos y plazo (Corto plazo (0–6 meses), Mediano plazo (6–18 meses), Largo plazo (más de 18 meses) o Continuo).
-- efectoRed: qué ocurre en los distritos vecinos, nombrándolos con su prioridad.
+- efectoRed: describe el supuesto de propagación a vecinos como hipótesis, no como efecto observado.
 - limitaciones: 3 a 4 limitaciones metodológicas del análisis.
 
 REGLA INVIOLABLE: usa exclusivamente las cifras del bloque DATOS. No inventes ni redondees a valores que no aparezcan ahí.
+Las consultas SIS no son pacientes únicos. Capacidad, accesibilidad y prioridad son estimaciones. Los demás determinantes sin fuente quedan sin dato.
 
 FORMATO DE CIFRAS: índices y ratios en porcentaje (0.88 → 88 %, 1.36 → 136 %); recuentos con separador de miles (13 950 atenciones/mes). Sin Markdown.
 
@@ -119,9 +120,9 @@ class NarrativaDictamen(BaseModel):
     limitaciones: list[str]
 
 
-def generar_dictamen(district_id: int, rol: str = "Investigador") -> dict[str, Any]:
+def generar_dictamen(district_id: int, rol: str = "Investigador", supplied_facts: dict[str, Any] | None = None) -> dict[str, Any]:
     """Narrativa estructurada del dictamen, fundamentada en el motor del gemelo."""
-    facts = recoger_hechos(district_id)
+    facts = supplied_facts if supplied_facts is not None else recoger_hechos(district_id)
     nombre = facts["distrito"]["distrito"]
 
     redactor = get_llm().with_structured_output(NarrativaDictamen)

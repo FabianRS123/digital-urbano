@@ -49,8 +49,8 @@ function t(text: string | number): string {
     .replace(/[^\x00-\xFF–—‘’“”•…]/g, '');
 }
 
-const pct = (v: number) => `${(v * 100).toFixed(0)} %`;
-const num = (v: number) => v.toLocaleString('es-PE');
+const pct = (v: number | null) => v === null ? 'Sin dato' : `${(v * 100).toFixed(0)} %`;
+const num = (v: number | null) => v === null ? 'Sin dato' : v.toLocaleString('es-PE');
 
 export function exportDictamenPdf(d: DictamenTecnico) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -168,7 +168,7 @@ export function exportDictamenPdf(d: DictamenTecnico) {
         `${d.clasificacion.rankingMetropolitano} de ${d.clasificacion.totalDistritos}`,
       ],
       [
-        'Vulnerabilidad',
+        'Pobreza 2018',
         `Quintil ${d.clasificacion.quintil}`,
         'Fecha de emisión',
         t(emision.toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short' })),
@@ -352,6 +352,13 @@ export function exportDictamenPdf(d: DictamenTecnico) {
   sectionTitle(n++, 'Cláusula ética y de responsabilidad');
   paragraph(d.notaEtica, 9);
 
+  sectionTitle(n++, 'Fuentes oficiales y versión');
+  paragraph(`Versión procesada: ${d.datasetVersion ?? 'sin versión'}; mes SIS: ${d.periodo}. Las fechas de las fuentes pueden diferir.`, 8);
+  for (const source of d.sources ?? []) {
+    paragraph(`${source.name} (${source.period}; consulta ${source.fetchedAt}). Página: ${source.pageUrl}`, 7);
+    for (const url of source.resourceUrls ?? [source.resourceUrl]) paragraph(`Recurso: ${url}`, 7);
+  }
+
   /* ------------------------------------------------------------------------ */
   /* Trazabilidad y conformidad                                                 */
   /* ------------------------------------------------------------------------ */
@@ -426,7 +433,7 @@ export function exportDictamenPdf(d: DictamenTecnico) {
     doc.setFontSize(7);
     doc.setTextColor(...C.muted);
     doc.text(
-      t('Documento generado automáticamente por el Gemelo Digital Urbano de Salud · Datos sintéticos de validación'),
+      t(`GDUS · Consultas SIS ${d.periodo} · Versión ${d.datasetVersion ?? 'sin versión'}`),
       PAGE.mx,
       PAGE.h - 8.5,
     );

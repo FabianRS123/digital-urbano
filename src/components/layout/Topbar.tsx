@@ -9,7 +9,6 @@ import {
   Sun,
   UserRound,
 } from 'lucide-react';
-import { AVAILABLE_MONTHS } from '../../data/trujilloData';
 import { USER_ROLES } from '../../app/navigation';
 import { useThemeContext } from '../../app/ThemeProvider';
 import { Button } from '../ui/Button';
@@ -17,6 +16,7 @@ import { Select } from '../ui/Field';
 import { cn } from '../../lib/utils';
 
 interface TopbarProps {
+  months: { key: string; label: string; isProjected: boolean }[];
   currentMonthIndex: number;
   onSelectMonthIndex: (idx: number) => void;
   isPlayingTimeline: boolean;
@@ -29,6 +29,7 @@ interface TopbarProps {
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
+  months,
   currentMonthIndex,
   onSelectMonthIndex,
   isPlayingTimeline,
@@ -40,9 +41,9 @@ export const Topbar: React.FC<TopbarProps> = ({
   onOpenNav,
 }) => {
   const { theme, toggleTheme } = useThemeContext();
-  const currentMonth = AVAILABLE_MONTHS[currentMonthIndex];
+  const currentMonth = months[currentMonthIndex];
   const progress =
-    (currentMonthIndex / Math.max(AVAILABLE_MONTHS.length - 1, 1)) * 100;
+    (currentMonthIndex / Math.max(months.length - 1, 1)) * 100;
 
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-surface/85 backdrop-blur-md">
@@ -84,7 +85,7 @@ export const Topbar: React.FC<TopbarProps> = ({
             className="h-7 w-[168px] border-transparent bg-surface text-[11.5px]"
             aria-label="Periodo de análisis"
           >
-            {AVAILABLE_MONTHS.map((m, idx) => (
+            {months.map((m, idx) => (
               <option key={m.key} value={idx}>
                 {m.label}
                 {m.isProjected ? ' · proyección' : ''}
@@ -98,7 +99,7 @@ export const Topbar: React.FC<TopbarProps> = ({
             title={
               isPlayingTimeline
                 ? 'Pausar evolución temporal'
-                : 'Reproducir evolución 2024 – 2026'
+                : `Reproducir evolución ${months[0]?.key ?? ''} – ${months.at(-1)?.key ?? ''}`
             }
             aria-label={
               isPlayingTimeline ? 'Pausar línea de tiempo' : 'Reproducir línea de tiempo'
@@ -132,7 +133,7 @@ export const Topbar: React.FC<TopbarProps> = ({
         <div className="hidden items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 xl:flex">
           <span className="size-1.5 rounded-full bg-positive animate-soft-pulse" />
           <span className="text-[10.5px] font-medium text-muted-foreground">
-            ST-GNN sincronizado
+            Datos SIS disponibles
           </span>
         </div>
 

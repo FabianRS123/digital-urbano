@@ -1,132 +1,55 @@
-import { Territory, RiskFactorExplication } from '../types';
+import type { Territory, RiskFactorExplication } from '../types';
+import { nextMonth, percentile, seasonalForecast } from './officialModel';
 
 export interface SpatioTemporalPredictionPoint {
-  monthKey: string;
-  label: string;
-  historicalValue: number | null;
-  predictedValue: number;
-  lowerConfidence: number;
-  upperConfidence: number;
-  isForecast: boolean;
+  monthKey: string; label: string; historicalValue: number | null;
+  predictedValue: number; lowerConfidence: number; upperConfidence: number;
+  lower95?: number; upper95?: number; isForecast: boolean;
 }
 
-export function generateDistrictTimeSeries(
-  district: Territory,
-  monthsHorizon: number = 6
-): SpatioTemporalPredictionPoint[] {
-  // Base demand scaled to district population and SDOH multiplier
-  const baseDemand = district.currentState.historicalDemand;
-  const growthRate = 0.003; // monthly baseline growth
-  const results: SpatioTemporalPredictionPoint[] = [];
-
-  // Generate 12 historical months (Set 2025 - Ago 2026)
-  const histDates = [
-    { year: 2025, month: 8, label: 'Set 2025' },
-    { year: 2025, month: 9, label: 'Oct 2025' },
-    { year: 2025, month: 10, label: 'Nov 2025' },
-    { year: 2025, month: 11, label: 'Dic 2025' },
-    { year: 2026, month: 0, label: 'Ene 2026' },
-    { year: 2026, month: 1, label: 'Feb 2026' },
-    { year: 2026, month: 2, label: 'Mar 2026' },
-    { year: 2026, month: 3, label: 'Abr 2026' },
-    { year: 2026, month: 4, label: 'May 2026' },
-    { year: 2026, month: 5, label: 'Jun 2026' },
-    { year: 2026, month: 6, label: 'Jul 2026' },
-    { year: 2026, month: 7, label: 'Ago 2026' },
-  ];
-
-  histDates.forEach((d, idx) => {
-    // Seasonal factor: Winter peak (Jun-Ago in Southern hemisphere)
-    const seasonal = Math.sin((d.month - 2) * (Math.PI / 6)) * 0.09;
-    const noise = Math.sin((idx + district.id) * 1.7) * 0.03;
-    const value = Math.round(baseDemand * (1 + (idx - 11) * growthRate + seasonal + noise));
-    const mStr = `${d.year}-${String(d.month + 1).padStart(2, '0')}`;
-    results.push({
-      monthKey: mStr,
-      label: d.label,
-      historicalValue: value,
-      predictedValue: value,
-      lowerConfidence: Math.round(value * 0.96),
-      upperConfidence: Math.round(value * 1.04),
-      isForecast: false
-    });
+/** Persistencia estacional evaluable; el historial procede de consultas externas SIS. */
+export function generateDistrictTimeSeries(district: Territory, monthsHorizon = 6): SpatioTemporalPredictionPoint[] {
+  const history = district.history ?? {};
+  const months = Object.keys(history).filter((month) => month <= district.currentState.monthKey).sort();
+  if (!months.length) return [];
+  const errors: number[] = [];
+  for (let i = 12; i < months.length; i++) {
+    const prediction = seasonalForecast(Object.fromEntries(months.slice(0, i).map((m) => [m, history[m]])), months[i]);
+    if (prediction !== null) errors.push(Math.abs(prediction - history[months[i]]));
+  }
+  const band90 = percentile(errors, 0.9) ?? 0;
+  const band95 = percentile(errors, 0.95) ?? band90;
+  const label = (month: string) => new Intl.DateTimeFormat('es-PE', { month: 'short', year: 'numeric', timeZone: 'UTC' })
+    .format(new Date(`${month}-01T00:00:00Z`));
+  const actual = months.slice(-12).map((month) => ({ monthKey: month, label: label(month),
+    historicalValue: history[month], predictedValue: history[month],
+    lowerConfidence: history[month], upperConfidence: history[month], isForecast: false }));
+  const forecast = Array.from({ length: monthsHorizon }, (_, i) => {
+    const month = nextMonth(months.at(-1)!, i + 1);
+    const value = seasonalForecast(history, month) ?? history[months.at(-1)!];
+    return { monthKey: month, label: label(month), historicalValue: null, predictedValue: value,
+      lowerConfidence: Math.max(0, Math.round(value - band90)), upperConfidence: Math.round(value + band90),
+      lower95: Math.max(0, Math.round(value - band95)), upper95: Math.round(value + band95), isForecast: true };
   });
-
-  // Generate Forecast Months (Set 2026 - Feb 2027)
-  const forecastDates = [
-    { year: 2026, month: 8, label: 'Set 2026 (+1m)' },
-    { year: 2026, month: 9, label: 'Oct 2026 (+2m)' },
-    { year: 2026, month: 10, label: 'Nov 2026 (+3m)' },
-    { year: 2026, month: 11, label: 'Dic 2026 (+4m)' },
-    { year: 2027, month: 0, label: 'Ene 2027 (+5m)' },
-    { year: 2027, month: 1, label: 'Feb 2027 (+6m)' },
-  ].slice(0, monthsHorizon);
-
-  forecastDates.forEach((d, idx) => {
-    const totalStep = 12 + idx;
-    const seasonal = Math.sin((d.month - 2) * (Math.PI / 6)) * 0.08;
-    const val = Math.round(baseDemand * (1 + (totalStep - 11) * growthRate + seasonal));
-    // Uncertainty widens over horizon (+- 5% up to +- 12%)
-    const uncertaintyBand = 0.04 + (idx * 0.016);
-    const mStr = `${d.year}-${String(d.month + 1).padStart(2, '0')}`;
-    results.push({
-      monthKey: mStr,
-      label: d.label,
-      historicalValue: null,
-      predictedValue: val,
-      lowerConfidence: Math.round(val * (1 - uncertaintyBand)),
-      upperConfidence: Math.round(val * (1 + uncertaintyBand)),
-      isForecast: true
-    });
-  });
-
-  return results;
+  return [...actual, ...forecast];
 }
 
 export function getRiskFactorsExplanation(district: Territory): RiskFactorExplication[] {
-  const sdoh = district.sdoh;
-  const current = district.currentState;
-
+  const state = district.currentState;
+  const pressureScore = state.systemPressure === null ? null : Math.min(Math.max(state.systemPressure - 0.6, 0), 1);
   return [
-    {
-      factor: 'Vulnerabilidad Social y Pobreza (SDOH)',
-      category: 'SDOH',
-      weight: 0.35,
-      score: sdoh.vulnerabilityIndex,
-      impact: sdoh.vulnerabilityIndex > 0.65 ? 'Alto Aumento de Riesgo' : sdoh.vulnerabilityIndex > 0.4 ? 'Moderado' : 'Factor Protector',
-      description: `Tasa de pobreza del ${(sdoh.povertyRate * 100).toFixed(0)}% y déficit de agua/saneamiento del ${(sdoh.sanitationDeficit * 100).toFixed(0)}% condicionan alta morbimortalidad basal.`
-    },
-    {
-      factor: 'Déficit de Accesibilidad Geográfica',
-      category: 'Accesibilidad',
-      weight: 0.25,
-      score: 1 - current.accessibilityIndex,
-      impact: current.accessibilityIndex < 0.5 ? 'Alto Aumento de Riesgo' : current.accessibilityIndex < 0.75 ? 'Moderado' : 'Factor Protector',
-      description: `Tiempo medio de traslado a primer nivel es de ${current.avgTravelTimeMinutes.toFixed(1)} min. Índice de conectividad territorial: ${(current.accessibilityIndex * 100).toFixed(0)}%.`
-    },
-    {
-      factor: 'Presión y Sobrecarga Asistencial',
-      category: 'Infraestructura',
-      weight: 0.20,
-      score: Math.min(current.systemPressure / 1.5, 1),
-      impact: current.systemPressure > 1.15 ? 'Alto Aumento de Riesgo' : current.systemPressure > 0.9 ? 'Moderado' : 'Factor Protector',
-      description: `Ratio de demanda / capacidad instalada de ${(current.systemPressure * 100).toFixed(0)}% en las ${district.activeFacilitiesCount} IPRESS operativas del distrito.`
-    },
-    {
-      factor: 'Densidad Poblacional y Hacinamiento',
-      category: 'Demanda',
-      weight: 0.12,
-      score: Math.min(district.density / 15000, 1),
-      impact: district.density > 8000 ? 'Alto Aumento de Riesgo' : district.density > 3000 ? 'Moderado' : 'Factor Protector',
-      description: `Densidad de ${district.density.toLocaleString()} hab/km² con ${(sdoh.overcrowdingRate * 100).toFixed(0)}% de hacinamiento crítico intradomiciliario.`
-    },
-    {
-      factor: 'Efecto de Desbordamiento Espacial (GNN Neighbor Spillover)',
-      category: 'Espacial',
-      weight: 0.08,
-      score: current.contagionRisk,
-      impact: current.contagionRisk > 0.7 ? 'Alto Aumento de Riesgo' : 'Moderado',
-      description: `Presión cruzada y transferencia de pacientes provenientes de los distritos limítrofes (${district.neighborIds.length} conexiones en el grafo metropolitano).`
-    }
+    { factor: 'Pobreza monetaria como aproximación social', category: 'SDOH', weight: 0.35,
+      score: district.sdoh.vulnerabilityIndex, impact: 'Componente estimado',
+      description: `Punto medio del intervalo de pobreza INEI 2018: ${(district.sdoh.povertyRate * 100).toFixed(1)} %. No equivale a un índice social multidimensional.` },
+    { factor: 'Presión de consultas externas SIS', category: 'Infraestructura', weight: 0.25,
+      score: pressureScore, impact: 'Componente estimado',
+      description: state.systemPressure === null ? 'Capacidad de referencia no disponible.' :
+        `Relación entre consultas SIS observadas y capacidad estimada: ${(state.systemPressure * 100).toFixed(1)} %.` },
+    { factor: 'Accesibilidad geográfica aproximada', category: 'Accesibilidad', weight: 0.25,
+      score: state.accessibilityIndex === null ? null : 1 - state.accessibilityIndex, impact: 'Componente estimado',
+      description: state.avgTravelTimeMinutes === null ? 'Sin IPRESS pública de primer nivel localizable.' : `Tiempo referencial desde el punto distrital: ${state.avgTravelTimeMinutes.toFixed(1)} min. No es un tiempo de viaje observado.` },
+    { factor: 'Presión de distritos vecinos', category: 'Espacial', weight: 0.15,
+      score: state.contagionRisk * 0.8, impact: 'Regla del modelo',
+      description: `Se usan ${district.neighborIds.length} distritos vecinos del mapa oficial. El efecto de red de las intervenciones es un supuesto.` },
   ];
 }

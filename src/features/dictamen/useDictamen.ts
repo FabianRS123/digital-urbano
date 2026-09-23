@@ -7,14 +7,14 @@ export function useDictamen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generar = useCallback(async (districtId: number, userRole = 'Investigador') => {
+  const generar = useCallback(async (districtId: number, userRole = 'Investigador', datasetVersion?: string, monthKey?: string) => {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch('/api/v1/ai-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ districtId, userRole }),
+        body: JSON.stringify({ districtId, userRole, datasetVersion, monthKey }),
       });
       if (!res.ok) throw new Error(`El servidor respondió ${res.status}`);
       const data = await res.json();

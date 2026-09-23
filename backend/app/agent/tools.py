@@ -58,7 +58,7 @@ def _slim(t: dict) -> dict:
         "ubigeo": t["code"],
         "poblacion": t["population"],
         "densidad_hab_km2": t["density"],
-        "vulnerabilidad_sdoh": s["vulnerabilityIndex"],
+        "indicador_pobreza_inei_2018": s["vulnerabilityIndex"],
         "quintil": s["vulnerabilityQuintile"],
         "pobreza": s["povertyRate"],
         "deficit_agua": s["waterAccessDeficit"],
@@ -171,8 +171,7 @@ def list_facilities(
 
 @tool
 def get_forecast(district_id: int, horizon_months: int = 6) -> dict:
-    """Serie espacio-temporal de demanda asistencial de un distrito: histórico
-    observado más proyección del modelo ST-GNN con banda de incertidumbre.
+    """Consultas externas SIS observadas y proyección por persistencia estacional.
 
     IMPORTANTE: nunca estimes una proyección por tu cuenta. Si necesitas un
     valor futuro, llama a esta herramienta."""

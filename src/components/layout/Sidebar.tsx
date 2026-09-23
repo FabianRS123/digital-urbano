@@ -130,8 +130,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             Proyecto académico
           </div>
           <p className="mt-1 text-[10px] leading-relaxed text-subtle-foreground">
-            Modelo espacio-temporal sensible a la equidad. Datos sintéticos para
-            validación de arquitectura.
+            Consultas SIS y fuentes oficiales. Escenarios y accesibilidad son
+            estimaciones académicas.
           </p>
           <p className="mt-2 font-mono text-[9.5px] text-subtle-foreground">
             Gemelo Digital Trujillo v1.0

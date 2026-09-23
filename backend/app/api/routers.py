@@ -33,13 +33,14 @@ def agent_health() -> dict:
 class DictamenRequest(BaseModel):
     districtId: int = Field(ge=1, le=10, description="ID del distrito (1-10)")
     userRole: str = "Investigador"
+    facts: dict | None = None
 
 
 @api_router.post("/agent/dictamen")
 def dictamen(req: DictamenRequest) -> dict:
     """Dictamen técnico de un distrito, con las cifras recogidas del motor."""
     try:
-        return generar_dictamen(req.districtId, req.userRole)
+        return generar_dictamen(req.districtId, req.userRole, req.facts)
     except TwinUnavailable as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except RuntimeError as exc:  # falta la clave de OpenRouter
@@ -48,13 +49,14 @@ def dictamen(req: DictamenRequest) -> dict:
 
 class RecomendacionRequest(BaseModel):
     districtId: int = Field(ge=1, le=10)
+    facts: dict | None = None
 
 
 @api_router.post("/agent/recomendacion")
 def recomendacion(req: RecomendacionRequest) -> dict:
     """Recomendación operativa vía Langflow. El dictamen LangChain no cambia."""
     try:
-        hechos = recoger_hechos(req.districtId)
+        hechos = req.facts if req.facts is not None else recoger_hechos(req.districtId)
         return pedir_recomendacion(hechos)
     except TwinUnavailable as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc

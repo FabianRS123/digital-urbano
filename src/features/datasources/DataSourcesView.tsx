@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Check, RefreshCw, ShieldCheck } from 'lucide-react';
-import { DATA_SOURCES } from '../../data/trujilloData';
+import type { DataSourceItem } from '../../types';
 import { ViewContainer } from '../../components/layout/AppShell';
 import {
   Badge,
@@ -16,40 +16,49 @@ import {
 import { formatNumber } from '../../lib/format';
 import { cn } from '../../lib/utils';
 
-export const DataSourcesView: React.FC = () => {
-  const [sources, setSources] = useState(DATA_SOURCES);
+export const DataSourcesView: React.FC<{ sources: DataSourceItem[]; version: string; createdAt: string; checkedAt: string; onUpdated: () => Promise<void> }> = ({ sources, version, createdAt, checkedAt, onUpdated }) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const totalRecords = sources.reduce((s, item) => s + item.recordsCount, 0);
 
-  const handleTriggerSync = () => {
-    setIsSyncing(true);
-    setToast(null);
+  useEffect(() => {
+    void fetch('/api/v1/data-sources/sync').then((res) => res.json()).then((status) => {
+      setIsSyncing(status.status === 'running');
+      if (status.error) setToast(`${status.progress}: ${status.error}`);
+      else if (status.status === 'running') setToast(status.progress);
+    }).catch((error) => setToast(String(error)));
+  }, []);
 
-    window.setTimeout(() => {
-      const stamp = new Date().toLocaleDateString('es-PE');
-      setSources((prev) =>
-        prev.map((s) => ({
-          ...s,
-          lastSync: `Hoy · ${stamp}`,
-          status: 'Sincronizado',
-        })),
-      );
-      setIsSyncing(false);
-      setToast(
-        `Pipeline ETL ejecutado. Se validaron ${formatNumber(totalRecords)} registros metropolitanos.`,
-      );
-      window.setTimeout(() => setToast(null), 4500);
-    }, 1200);
+  const handleTriggerSync = async () => {
+    setToast(null);
+    const res = await fetch('/api/v1/data-sources/sync', { method: 'POST' });
+    if (!res.ok && res.status !== 409) { setToast(`No se pudo iniciar la descarga: HTTP ${res.status}`); return; }
+    setIsSyncing(true);
   };
+
+  useEffect(() => {
+    if (!isSyncing) return;
+    const timer = window.setInterval(async () => {
+      try {
+        const status = await (await fetch('/api/v1/data-sources/sync')).json();
+        setToast(status.progress);
+        if (status.status !== 'running') {
+          setIsSyncing(false);
+          if (status.status === 'success') await onUpdated();
+          if (status.error) setToast(`${status.progress}: ${status.error}`);
+        }
+      } catch (error) { setIsSyncing(false); setToast(String(error)); }
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [isSyncing, onUpdated]);
 
   return (
     <ViewContainer>
       <PageHeader
         eyebrow="Gobernanza"
         title="Fuentes de datos y pipeline de ingesta"
-        description="Monitoreo y gobernanza de los datos oficiales de salud pública, censos y capas geográficas que alimentan el gemelo digital."
+        description="Fuentes oficiales descargadas por el servidor. Cada periodo y fecha corresponden a su fuente original."
         actions={
           <>
             <Badge tone="outline" mono>
@@ -63,11 +72,13 @@ export const DataSourcesView: React.FC = () => {
               <RefreshCw
                 className={cn('size-3.5', isSyncing && 'animate-spin')}
               />
-              {isSyncing ? 'Ejecutando ingesta…' : 'Ejecutar sincronización'}
+                {isSyncing ? 'Descargando y procesando…' : 'Ejecutar sincronización'}
             </Button>
           </>
         }
       />
+
+      <p className="text-xs text-muted-foreground">Versión {version} · publicada {new Date(createdAt).toLocaleString('es-PE')} · última comprobación {new Date(checkedAt).toLocaleString('es-PE')}</p>
 
       {toast && (
         <Callout
@@ -98,8 +109,12 @@ export const DataSourcesView: React.FC = () => {
               </div>
 
               <p className="text-[11.5px] leading-relaxed text-muted-foreground">
-                {source.description}
+                {source.description ?? `${source.institution ?? ''} · datos oficiales`}
               </p>
+              <div className="flex flex-wrap gap-3 text-[11px] text-primary underline">
+                {source.pageUrl && <a href={source.pageUrl} target="_blank" rel="noopener noreferrer">Página oficial</a>}
+                {(source.resourceUrls ?? (source.resourceUrl ? [source.resourceUrl] : [])).map((url, index) => <a key={url} href={url} target="_blank" rel="noopener noreferrer">Descarga original {source.id === 'sis' ? index + 1 : ''}</a>)}
+              </div>
 
               <dl className="grid grid-cols-3 gap-3 border-t border-border pt-3 text-[10.5px]">
                 <div>
@@ -109,25 +124,20 @@ export const DataSourcesView: React.FC = () => {
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-subtle-foreground">Frecuencia</dt>
+                  <dt className="text-subtle-foreground">Periodo</dt>
                   <dd className="mt-0.5 font-semibold text-foreground">
-                    {source.updateFrequency ?? source.frequency ?? '—'}
+                    {source.period ?? '—'}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-subtle-foreground">Última sinc.</dt>
                   <dd className="mt-0.5 font-semibold text-primary">
-                    {source.lastSync ?? source.lastUpdated ?? '—'}
+                    {source.fetchedAt ? new Date(source.fetchedAt).toLocaleString('es-PE') : '—'}
                   </dd>
                 </div>
               </dl>
 
-              {(source.coverageTemporal || source.coverageSpatial) && (
-                <div className="text-[10px] text-subtle-foreground">
-                  Cobertura: {source.coverageTemporal ?? '—'} ·{' '}
-                  {source.coverageSpatial ?? '—'}
-                </div>
-              )}
+              <div className="text-[10px] text-subtle-foreground">Registros rechazados: {source.rejectedCount ?? 0}</div>
             </CardBody>
           </Card>
         ))}
@@ -137,10 +147,9 @@ export const DataSourcesView: React.FC = () => {
         icon={<ShieldCheck className="size-4" />}
         title="Gobernanza de datos y anonimización"
       >
-        Todos los datos de consultas y atenciones ambulatorias se agregan a
-        nivel distrital y sectorial para garantizar la anonimización total
-        conforme a la Ley N.° 29733 de Protección de Datos Personales del Perú.
-        Los registros no contienen información personal identificable (PII).
+        La aplicación conserva únicamente agregados de consultas externas SIS por
+        mes, distrito e IPRESS. Capacidad, accesibilidad y escenarios son
+        estimaciones con métodos documentados; los periodos de las fuentes difieren.
       </Callout>
     </ViewContainer>
   );

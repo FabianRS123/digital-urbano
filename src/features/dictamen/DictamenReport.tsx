@@ -82,7 +82,7 @@ export const DictamenReport: React.FC<{ dictamen: DictamenTecnico }> = ({ dictam
             ['Población', `${formatNumber(d.distrito.poblacion)} hab.`],
             ['Periodo', d.periodo],
             ['Ranking', `${d.clasificacion.rankingMetropolitano} de ${d.clasificacion.totalDistritos}`],
-            ['Vulnerabilidad', `Quintil ${d.clasificacion.quintil}`],
+            ['Pobreza 2018', `Quintil ${d.clasificacion.quintil}`],
             ['Emisión', new Date(d.fechaEmision).toLocaleDateString('es-PE', { dateStyle: 'medium' })],
           ].map(([k, v]) => (
             <div key={k}>
@@ -191,11 +191,11 @@ export const DictamenReport: React.FC<{ dictamen: DictamenTecnico }> = ({ dictam
                     <Td align="right" className="numeric">{formatPercent(f.peso)}</Td>
                     <Td>
                       <div className="flex items-center gap-2">
-                        <Meter
+                        {f.puntuacion !== null && <Meter
                           value={f.puntuacion}
                           className="h-1 w-16"
                           barClassName={f.puntuacion > 0.66 ? 'bg-negative' : f.puntuacion > 0.4 ? 'bg-warning' : 'bg-positive'}
-                        />
+                        />}
                         <span className="numeric font-semibold">{formatPercent(f.puntuacion)}</span>
                       </div>
                     </Td>
@@ -292,6 +292,17 @@ export const DictamenReport: React.FC<{ dictamen: DictamenTecnico }> = ({ dictam
         </Section>
 
         {/* Trazabilidad ---------------------------------------------------- */}
+        <Section numero={9} titulo="Fuentes y procedencia">
+          <p className="text-xs">Versión {d.datasetVersion ?? 'Sin dato'} · consultas SIS {d.periodo}</p>
+          <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+            {(d.sources ?? []).map((source) => <p key={source.id}>{source.name} · {source.period} ·{' '}
+              <a className="underline" href={source.pageUrl} target="_blank" rel="noreferrer">Página oficial</a>{' · '}
+              {(source.resourceUrls ?? [source.resourceUrl]).map((url, index) => <React.Fragment key={url}>
+                <a className="underline" href={url} target="_blank" rel="noreferrer">Recurso {index + 1}</a>{' '}
+              </React.Fragment>)}
+            </p>)}
+          </div>
+        </Section>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border pt-4 text-[10.5px] text-subtle-foreground">
           <span className="flex items-center gap-1.5">
             <FileText className="size-3" />

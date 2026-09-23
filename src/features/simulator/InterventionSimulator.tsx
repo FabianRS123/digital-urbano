@@ -17,7 +17,6 @@ import {
   SimulationResult,
   Territory,
 } from '../../types';
-import { DigitalTwinEngine } from '../../lib/simulationEngine';
 import { ViewContainer } from '../../components/layout/AppShell';
 import {
   Badge,
@@ -40,6 +39,8 @@ import { deltaTone } from '../../lib/risk';
 import { cn } from '../../lib/utils';
 
 interface InterventionSimulatorProps {
+  datasetVersion: string;
+  monthKey: string;
   territories: Territory[];
   facilities: HealthFacility[];
   initialDistrictId?: number;
@@ -82,6 +83,8 @@ const INTERVENTIONS: {
 ];
 
 export const InterventionSimulator: React.FC<InterventionSimulatorProps> = ({
+  datasetVersion,
+  monthKey,
   territories,
   facilities,
   initialDistrictId,
@@ -134,7 +137,7 @@ export const InterventionSimulator: React.FC<InterventionSimulatorProps> = ({
     }
   }, [closureFacilityId, districtFacilities]);
 
-  const handleRunSimulation = () => {
+  const handleRunSimulation = async () => {
     setIsSimulating(true);
     setSaveState('idle');
 
@@ -159,41 +162,24 @@ export const InterventionSimulator: React.FC<InterventionSimulatorProps> = ({
           : undefined,
     };
 
-    window.setTimeout(() => {
-      const simulation = DigitalTwinEngine.runSimulation(
-        territories,
-        facilities,
-        params,
-        scenarioName,
-        'Investigador Principal',
-      );
+    try {
+      const response = await fetch('/api/v1/simulate', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ params, scenarioName, authorRole: 'Investigador Principal',
+          datasetVersion, monthKey }) });
+      if (!response.ok) throw new Error((await response.json()).error ?? `HTTP ${response.status}`);
+      const { result: simulation } = await response.json() as { result: SimulationResult };
       setResult(simulation);
-      setIsSimulating(false);
       onSimulationComplete(simulation);
-    }, 260);
+      setSaveState('saved');
+    } catch (error) { console.error(error); setSaveState('error'); }
+    finally { setIsSimulating(false); }
   };
 
   const handleSaveToBackend = async () => {
     if (!result) return;
     setSaveState('saving');
-    try {
-      const res = await fetch('/api/v1/simulate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scenarioName,
-          params: result.params,
-          authorRole: 'Investigador Principal',
-        }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setSaveState('saved');
-    } catch (error) {
-      console.error(error);
-      setSaveState('error');
-    } finally {
-      window.setTimeout(() => setSaveState('idle'), 3500);
-    }
+    setSaveState('saved');
   };
 
   return (

@@ -2,23 +2,23 @@
 
 const LOCALE = 'es-PE';
 
-export const formatNumber = (value: number, maximumFractionDigits = 0) =>
-  new Intl.NumberFormat(LOCALE, { maximumFractionDigits }).format(value);
+export const formatNumber = (value: number | null | undefined, maximumFractionDigits = 0) =>
+  value === null || value === undefined || !Number.isFinite(value) ? 'Sin dato' : new Intl.NumberFormat(LOCALE, { maximumFractionDigits }).format(value);
 
 /** 0.62 -> "62%" */
-export const formatPercent = (ratio: number, digits = 0) =>
-  `${(ratio * 100).toFixed(digits)}%`;
+export const formatPercent = (ratio: number | null | undefined, digits = 0) =>
+  ratio === null || ratio === undefined || !Number.isFinite(ratio) ? 'Sin dato' : `${(ratio * 100).toFixed(digits)}%`;
 
 /** 0.62 -> "62" (sin símbolo, para tipografía grande) */
-export const formatScore = (ratio: number, digits = 0) =>
-  (ratio * 100).toFixed(digits);
+export const formatScore = (ratio: number | null | undefined, digits = 0) =>
+  ratio === null || ratio === undefined || !Number.isFinite(ratio) ? 'Sin dato' : (ratio * 100).toFixed(digits);
 
 /** Prefija siempre el signo: +4.2 / -1.8 */
 export const formatSigned = (value: number, digits = 1, suffix = '') =>
   `${value > 0 ? '+' : ''}${value.toFixed(digits)}${suffix}`;
 
-export const formatMinutes = (value: number) =>
-  `${Number.isInteger(value) ? value : value.toFixed(1)} min`;
+export const formatMinutes = (value: number | null | undefined) =>
+  value === null || value === undefined || !Number.isFinite(value) ? 'Sin dato' : `${Number.isInteger(value) ? value : value.toFixed(1)} min`;
 
 export const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString(LOCALE, {

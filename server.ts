@@ -10,7 +10,10 @@ import type { DictamenTecnico } from './src/types';
 // Servicio de agente (FastAPI + LangChain). Es opcional: si no está levantado,
 // el dictamen se completa con la narrativa por reglas.
 const AGENT_URL = process.env.AGENT_URL ?? 'http://127.0.0.1:8000/api/v1';
-import { INITIAL_DISTRICTS, INITIAL_FACILITIES, AI_BENCHMARK_MODELS, DATA_SOURCES, EQUITY_METRICS, RISK_THRESHOLDS } from './src/data/trujilloData';
+import { RISK_THRESHOLDS } from './src/lib/riskThresholds';
+import { buildOfficialSnapshot, readOfficialSnapshot, saveOfficialSnapshot } from './src/data/realData';
+import type { RealSnapshot } from './src/data/realData';
+import { buildModelView } from './src/lib/officialModel';
 import { DigitalTwinEngine } from './src/lib/simulationEngine';
 import { generateDistrictTimeSeries, getRiskFactorsExplanation } from './src/lib/spatiotemporalGnn';
 
@@ -20,10 +23,53 @@ async function startServer() {
 
   app.use(express.json());
 
-  // In-memory runtime state for simulation scenarios & dynamic edits
-  let currentTerritories = JSON.parse(JSON.stringify(INITIAL_DISTRICTS));
-  let currentFacilities = JSON.parse(JSON.stringify(INITIAL_FACILITIES));
+  let snapshot: RealSnapshot | null = readOfficialSnapshot();
+  const currentView = (month?: string) => {
+    if (!snapshot) throw new Error('Datos oficiales no disponibles. Ejecuta pnpm data:sync.');
+    return buildModelView(snapshot, month);
+  };
+  let syncState: { status: 'idle' | 'running' | 'success' | 'error'; progress: string; error?: string } =
+    { status: 'idle', progress: '' };
+  const startSync = () => {
+    if (syncState.status === 'running') return false;
+    syncState = { status: 'running', progress: 'Iniciando descarga' };
+    void buildOfficialSnapshot((progress) => { syncState.progress = progress; })
+      .then(async (next) => {
+        const unchanged = snapshot?.version === next.version;
+        const published = unchanged ? { ...next, createdAt: snapshot!.createdAt } : next;
+        await saveOfficialSnapshot(published); snapshot = published;
+        syncState = { status: 'success', progress: unchanged ? `Sin cambios; versión ${next.version} validada` : `Versión ${next.version} actualizada` };
+      })
+      .catch((error) => { console.error('Sincronización oficial:', error);
+        syncState = { status: 'error', progress: 'Se conserva la última copia válida', error: String(error) }; });
+    return true;
+  };
+  if (!snapshot || Date.now() - Date.parse(snapshot.checkedAt) > 24 * 60 * 60 * 1000) startSync();
   let savedSimulations: any[] = [];
+
+  app.get('/api/v1/bootstrap', (req, res) => {
+    try { res.json(currentView(req.query.month as string | undefined)); }
+    catch (error) { res.status(503).json({ error: String(error), syncState }); }
+  });
+  app.get('/api/v1/data-sources/sync', (_req, res) => res.json(syncState));
+  app.post('/api/v1/data-sources/sync', (_req, res) => {
+    if (!startSync()) return res.status(409).json(syncState);
+    res.status(202).json(syncState);
+  });
+  app.use('/api/v1', (req, res, next) => {
+    if (!snapshot) return res.status(503).json({ error: 'Sin copia oficial. Ejecuta pnpm data:sync.', syncState });
+    const requestedMonth = req.method === 'GET' ? req.query.month : req.body?.monthKey;
+    if (requestedMonth && !snapshot.months.includes(String(requestedMonth)))
+      return res.status(400).json({ error: `Mes sin atenciones SIS: ${requestedMonth}` });
+    if (req.method === 'POST' && ['simulate', 'ai-analysis', 'langflow/recomendacion'].includes(req.path.slice(1)) &&
+      !req.body?.datasetVersion) return res.status(400).json({ error: 'Falta datasetVersion. Recarga los datos antes de calcular.' });
+    if (req.method === 'POST' && ['simulate', 'ai-analysis', 'langflow/recomendacion'].includes(req.path.slice(1)) &&
+      req.body.datasetVersion !== snapshot.version)
+      return res.status(409).json({ error: 'Versión de datos cambiada. Recarga antes de calcular.', version: snapshot.version });
+    res.setHeader('X-Dataset-Version', snapshot.version);
+    res.setHeader('X-Dataset-Month', String(requestedMonth ?? snapshot.months.at(-1)));
+    next();
+  });
 
   // ================= REST API ROUTERS (/api/v1/...) =================
 
@@ -39,6 +85,7 @@ async function startServer() {
 
   // 1. Territories / Distritos
   app.get('/api/v1/territories', (req, res) => {
+    const currentTerritories = currentView(req.query.month as string | undefined).territories;
     res.json({
       count: currentTerritories.length,
       data: currentTerritories
@@ -46,6 +93,8 @@ async function startServer() {
   });
 
   app.get('/api/v1/territories/:id', (req, res) => {
+    const view = currentView(req.query.month as string | undefined);
+    const currentTerritories = view.territories, currentFacilities = view.facilities;
     const id = parseInt(req.params.id, 10);
     const territory = currentTerritories.find((t: any) => t.id === id);
     if (!territory) {
@@ -65,6 +114,7 @@ async function startServer() {
 
   // 2. Health Facilities (IPRESS)
   app.get('/api/v1/facilities', (req, res) => {
+    const currentFacilities = currentView(req.query.month as string | undefined).facilities;
     const { districtId, category, status } = req.query;
     let results = [...currentFacilities];
 
@@ -86,8 +136,9 @@ async function startServer() {
 
   // 3. Hotspots Ranking & Thresholds
   app.get('/api/v1/hotspots', (req, res) => {
+    const currentTerritories = currentView(req.query.month as string | undefined).territories;
     const sorted = [...currentTerritories].sort(
-      (a: any, b: any) => b.currentState.priorityIndex - a.currentState.priorityIndex
+      (a: any, b: any) => (b.currentState.priorityIndex ?? -1) - (a.currentState.priorityIndex ?? -1)
     );
     res.json({
       thresholds: RISK_THRESHOLDS,
@@ -97,6 +148,7 @@ async function startServer() {
 
   // 4. Predictions / Time Series
   app.get('/api/v1/predictions/:districtId', (req, res) => {
+    const currentTerritories = currentView(req.query.month as string | undefined).territories;
     const id = parseInt(req.params.districtId, 10);
     const territory = currentTerritories.find((t: any) => t.id === id);
     if (!territory) {
@@ -108,8 +160,8 @@ async function startServer() {
       districtId: id,
       districtName: territory.name,
       horizonMonths: horizon,
-      modelName: 'Spatiotemporal GNN (GAT + Temporal Attention)',
-      modelVersion: 'ST-GNN-Trujillo-v1.4',
+      modelName: 'Persistencia estacional',
+      modelVersion: '1',
       forecast: points
     });
   });
@@ -117,10 +169,15 @@ async function startServer() {
   // 5. Intervention Simulator (What-if Engine)
   app.post('/api/v1/simulate', (req, res) => {
     try {
+      const view = currentView(req.body.monthKey);
+      const currentTerritories = view.territories, currentFacilities = view.facilities;
       const { params, scenarioName, authorRole } = req.body;
       if (!params || !params.targetDistrictId) {
         return res.status(400).json({ error: 'Parámetros de intervención incompletos' });
       }
+      const target = currentTerritories.find((t) => t.id === params.targetDistrictId);
+      if (!target || target.currentState.healthcareCapacity === null || target.currentState.priorityIndex === null)
+        return res.status(422).json({ error: 'Este distrito no tiene capacidad SIS estimable para simular.' });
 
       const result = DigitalTwinEngine.runSimulation(
         currentTerritories,
@@ -130,12 +187,12 @@ async function startServer() {
         authorRole || 'Investigador Principal'
       );
 
-      savedSimulations.unshift(result);
+      savedSimulations.unshift({ ...result, datasetVersion: view.version, monthKey: view.month });
       if (savedSimulations.length > 50) savedSimulations.pop();
 
       res.json({
         status: 'success',
-        result
+        result: { ...result, datasetVersion: view.version, monthKey: view.month }
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Error en el motor de simulación' });
@@ -158,27 +215,27 @@ async function startServer() {
   // 7. AI Models Benchmark
   app.get('/api/v1/models', (req, res) => {
     res.json({
-      models: AI_BENCHMARK_MODELS,
-      disclaimer: 'Resultado demostrativo con datos sintéticos calibrados para el Área Metropolitana de Trujillo. No corresponde a evaluación médica causal definitiva.'
+      models: currentView(req.query.month as string | undefined).benchmarks,
+      disclaimer: 'Evaluación retrospectiva de baselines deterministas sobre consultas externas SIS; no hay una ST-GNN entrenada.'
     });
   });
 
   // 8. Data Sources
   app.get('/api/v1/data-sources', (req, res) => {
     res.json({
-      sources: DATA_SOURCES,
-      syncStatus: 'Sincronizado',
-      lastMetropolitanETL: '2026-08-20T04:00:00Z'
+      sources: snapshot!.sources,
+      syncStatus: syncState.status,
+      lastMetropolitanETL: snapshot!.createdAt,
+      version: snapshot!.version,
+      error: syncState.error
     });
   });
 
   // 9. Equity & Fairness Metrics
   app.get('/api/v1/equity', (req, res) => {
     res.json({
-      quintiles: EQUITY_METRICS,
-      overallGiniSanitaryDeficit: 0.38,
-      equityIndex: 0.74,
-      disclaimer: 'Desagregación de métricas de desempeño del modelo según quintiles de vulnerabilidad socioeconómica.'
+      quintiles: currentView(req.query.month as string | undefined).equity,
+      disclaimer: 'Pobreza INEI 2018 como aproximación de vulnerabilidad; acceso y capacidad estimados.'
     });
   });
 
@@ -188,11 +245,13 @@ async function startServer() {
   // responde, la narrativa se genera por reglas. El resultado es el mismo
   // documento en ambos casos, listo para mostrarse o exportarse a PDF.
   app.post('/api/v1/ai-analysis', async (req, res) => {
+    const view = currentView(req.body.monthKey);
+    const currentTerritories = view.territories, currentFacilities = view.facilities;
     const { districtId } = req.body;
-    const territory =
-      currentTerritories.find((t: any) => t.id === districtId) || currentTerritories[1];
+    const territory = currentTerritories.find((t: any) => t.id === districtId);
+    if (!territory) return res.status(404).json({ error: 'Distrito no encontrado' });
 
-    const base = construirDictamenBase(territory, currentTerritories, currentFacilities);
+    const base = { ...construirDictamenBase(territory, currentTerritories, currentFacilities), datasetVersion: view.version, sources: view.sources };
 
     try {
       const agentRes = await fetch(`${AGENT_URL}/agent/dictamen`, {
@@ -200,7 +259,16 @@ async function startServer() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           districtId: territory.id,
-          userRole: req.body.userRole ?? 'Investigador'
+          userRole: req.body.userRole ?? 'Investigador',
+          facts: { distrito: { distrito: territory.name, ubigeo: territory.code,
+            consultas_sis: territory.currentState.historicalDemand, mes_sis: view.month,
+            poblacion: territory.population, pobreza_inei_2018: territory.sdoh.povertyRate,
+            capacidad_estimada: territory.currentState.healthcareCapacity,
+            accesibilidad_estimada: territory.currentState.accessibilityIndex,
+            presion_estimada: territory.currentState.systemPressure,
+            prioridad_derivada: territory.currentState.priorityIndex },
+            vecinos: base.vecinos, indicadores: base.indicadores,
+            version: view.version, fuentes: view.sources.map((source) => ({ id: source.id, period: source.period, pageUrl: source.pageUrl })) }
         }),
         signal: AbortSignal.timeout(90_000)
       });
@@ -213,10 +281,10 @@ async function startServer() {
           fuente: {
             origen: 'langchain-agent',
             modelo: payload.modelUsed,
-            motor: 'DigitalTwinEngine · ST-GNN-Trujillo-v1.4'
+            motor: 'DigitalTwinEngine · línea base oficial'
           }
         };
-        return res.json({ success: true, dictamen, facts: payload.facts });
+        return res.json({ success: true, dictamen, facts: payload.facts, datasetVersion: view.version, monthKey: view.month, sources: view.sources });
       }
       console.warn(`Agente respondió ${agentRes.status}; se usa la narrativa por reglas.`);
     } catch (err: any) {
@@ -229,10 +297,10 @@ async function startServer() {
       fuente: {
         origen: 'reglas',
         modelo: 'Sistema experto basado en reglas',
-        motor: 'DigitalTwinEngine · ST-GNN-Trujillo-v1.4'
+        motor: 'DigitalTwinEngine · línea base oficial'
       }
     };
-    res.json({ success: true, dictamen });
+    res.json({ success: true, dictamen, datasetVersion: view.version, monthKey: view.month, sources: view.sources });
   });
 
   // 11. Agente conversacional (proxy a FastAPI + LangChain)
@@ -261,10 +329,20 @@ async function startServer() {
   // Independiente del dictamen LangChain: si Langflow está caído, el dictamen sigue.
   app.post('/api/v1/langflow/recomendacion', async (req, res) => {
     try {
+      const view = currentView(req.body.monthKey);
+      const district = view.territories.find((item) => item.id === req.body.districtId);
+      if (!district) return res.status(404).json({ error: 'Distrito no encontrado' });
       const r = await fetch(`${AGENT_URL}/agent/recomendacion`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ districtId: req.body.districtId }),
+        body: JSON.stringify({ districtId: req.body.districtId, facts: {
+          distrito: { distrito: district.name, ubigeo: district.code, poblacion: district.population,
+            mes_sis: view.month, consultas_sis: district.currentState.historicalDemand,
+            prioridad_derivada: district.currentState.priorityIndex,
+            pobreza_inei_2018: district.sdoh.povertyRate,
+            presion_estimada: district.currentState.systemPressure,
+            acceso_estimado: district.currentState.accessibilityIndex },
+          version: view.version, fuentes: view.sources.map((source) => ({ id: source.id, period: source.period, pageUrl: source.pageUrl })) } }),
         signal: AbortSignal.timeout(90_000)
       });
       const body = await r.json();

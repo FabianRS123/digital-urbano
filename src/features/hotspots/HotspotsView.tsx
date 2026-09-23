@@ -55,6 +55,8 @@ export const HotspotsView: React.FC<HotspotsViewProps> = ({
 
   const ranked = territories
     .map((t) => {
+      if (t.currentState.systemPressure === null || t.currentState.accessibilityIndex === null)
+        return { territory: t, score: null as number | null };
       const pressureScore = Math.min(
         Math.max((t.currentState.systemPressure - 0.6) / 1.0, 0),
         1,
@@ -70,9 +72,9 @@ export const HotspotsView: React.FC<HotspotsViewProps> = ({
       const score =
         Math.round(Math.min(Math.max(raw / (total || 1), 0.05), 0.98) * 100) /
         100;
-      return { territory: t, score };
+      return { territory: t, score: score as number | null };
     })
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
 
   const setWeight = (key: keyof typeof BASE_WEIGHTS, value: number) =>
     setWeights((prev) => ({ ...prev, [key]: value }));
@@ -103,7 +105,7 @@ export const HotspotsView: React.FC<HotspotsViewProps> = ({
         <CardBody className="space-y-4 pt-4">
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
             <Slider
-              label="Vulnerabilidad SDOH"
+              label="Pobreza INEI 2018"
               value={weights.vulnerability}
               displayValue={`${(weights.vulnerability * 100).toFixed(0)} %`}
               hint="Pobreza, agua y saneamiento"
@@ -146,7 +148,7 @@ export const HotspotsView: React.FC<HotspotsViewProps> = ({
 
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-sunken/70 px-3.5 py-3">
             <code className="font-mono text-[11px] text-foreground">
-              Prioridad = ({weights.vulnerability.toFixed(2)} × SDOH) + (
+              Prioridad = ({weights.vulnerability.toFixed(2)} × Pobreza) + (
               {weights.pressure.toFixed(2)} × Presión) + (
               {weights.access.toFixed(2)} × DéficitAcceso) + (
               {weights.spillover.toFixed(2)} × Spillover)
@@ -182,7 +184,7 @@ export const HotspotsView: React.FC<HotspotsViewProps> = ({
                   #
                 </Th>
                 <Th>Distrito</Th>
-                <Th>Vulnerabilidad</Th>
+                <Th>Pobreza INEI 2018</Th>
                 <Th>Demanda / capacidad</Th>
                 <Th>Tiempo de viaje</Th>
                 <Th align="right">Índice</Th>
@@ -220,14 +222,14 @@ export const HotspotsView: React.FC<HotspotsViewProps> = ({
                   </Td>
                   <Td>
                     <CellStack
-                      primary={`${territory.currentState.avgTravelTimeMinutes} min`}
+                      primary={territory.currentState.avgTravelTimeMinutes === null ? 'Sin dato' : `${territory.currentState.avgTravelTimeMinutes.toFixed(1)} min aprox.`}
                       secondary={`${formatPercent(territory.currentState.accessibilityIndex)} de acceso`}
                     />
                   </Td>
                   <Td align="right">
                     <div className="flex items-center justify-end gap-2">
                       <Meter
-                        value={score}
+                        value={score ?? 0}
                         barClassName={getRiskFillClass(score)}
                         className="h-1 w-14"
                       />

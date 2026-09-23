@@ -40,7 +40,7 @@ export const RiskExplainabilityView: React.FC<RiskExplainabilityViewProps> = ({
       <PageHeader
         eyebrow="Analítica"
         title="Explicabilidad del riesgo"
-        description={`Descomposición interpretable (estilo SHAP) del índice de prioridad para ${district.name}.`}
+        description={`Descomposición de la fórmula de prioridad para ${district.name}.`}
         actions={
           <>
             <Badge className={getRiskBadgeClass(score)} mono>
@@ -68,13 +68,9 @@ export const RiskExplainabilityView: React.FC<RiskExplainabilityViewProps> = ({
         icon={<ShieldAlert className="size-5" />}
         title="Advertencia ética y epidemiológica de no causalidad"
       >
-        Los factores de ponderación e importancia de variables reflejan{' '}
-        <strong className="font-semibold text-foreground">
-          asociaciones estadísticas y correlaciones espacio-temporales
-        </strong>{' '}
-        capturadas por la red neuronal en grafos. No demuestran una relación
-        causal biológica o sociológica determinista y deben interpretarse junto
-        con la experiencia clínica y de salud pública en campo.
+        Las ponderaciones son supuestos del modelo. La pobreza INEI 2018 se usa como
+        aproximación socioeconómica; capacidad, accesibilidad y presión espacial son
+        derivaciones o estimaciones. Esta descomposición no demuestra causalidad.
       </Callout>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -122,7 +118,7 @@ export const RiskExplainabilityView: React.FC<RiskExplainabilityViewProps> = ({
                     {formatPercent(factor.score)}
                   </span>
                 </div>
-                <Meter
+                {factor.score !== null && <Meter
                   value={factor.score}
                   barClassName={
                     factor.score > 0.66
@@ -131,7 +127,7 @@ export const RiskExplainabilityView: React.FC<RiskExplainabilityViewProps> = ({
                         ? 'bg-risk-medium'
                         : 'bg-risk-low'
                   }
-                />
+                />}
               </div>
             </CardBody>
           </Card>

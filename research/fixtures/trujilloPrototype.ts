@@ -1,4 +1,4 @@
-import { Territory, HealthFacility, AIModelBenchmark, DataSourceItem, EquityMetric } from '../types';
+import { Territory, HealthFacility, AIModelBenchmark, DataSourceItem, EquityMetric } from '../../src/types';
 
 export const RISK_THRESHOLDS = {
   BAJO: { min: 0.00, max: 0.39, label: 'Bajo', color: '#10b981', badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },

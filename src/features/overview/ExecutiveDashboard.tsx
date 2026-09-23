@@ -42,6 +42,7 @@ import {
 import { cn } from '../../lib/utils';
 
 interface ExecutiveDashboardProps {
+  months: string[];
   territories: Territory[];
   facilities: HealthFacility[];
   selectedDistrictId: number | null;
@@ -51,6 +52,7 @@ interface ExecutiveDashboardProps {
 }
 
 export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
+  months,
   territories,
   facilities,
   selectedDistrictId,
@@ -61,42 +63,28 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   const chart = useChartTheme();
 
   const totalPopulation = territories.reduce((s, t) => s + t.population, 0);
-  const totalDemand = territories.reduce(
-    (s, t) => s + t.currentState.historicalDemand,
-    0,
-  );
-  const totalProjected = territories.reduce(
-    (s, t) => s + t.currentState.projectedDemand,
-    0,
-  );
+  const totalDemand = territories.every((t) => t.currentState.historicalDemand !== null)
+    ? territories.reduce((sum, t) => sum + t.currentState.historicalDemand!, 0) : null;
+  const totalProjected = territories.every((t) => t.currentState.projectedDemand !== null)
+    ? territories.reduce((sum, t) => sum + t.currentState.projectedDemand!, 0) : null;
   const criticalDistricts = territories.filter(
     (t) => t.currentState.priorityIndex >= 0.8,
   );
-  const avgAccessibility =
-    territories.reduce((s, t) => s + t.currentState.accessibilityIndex, 0) /
-    territories.length;
-  const avgTravelTime =
-    territories.reduce((s, t) => s + t.currentState.avgTravelTimeMinutes, 0) /
-    territories.length;
+  const accessValues = territories.map((t) => t.currentState.accessibilityIndex).filter((value): value is number => value !== null);
+  const travelValues = territories.map((t) => t.currentState.avgTravelTimeMinutes).filter((value): value is number => value !== null);
+  const avgAccessibility = accessValues.length ? accessValues.reduce((sum, value) => sum + value, 0) / accessValues.length : null;
+  const avgTravelTime = travelValues.length ? travelValues.reduce((sum, value) => sum + value, 0) / travelValues.length : null;
 
   const ranking = [...territories].sort(
-    (a, b) => b.currentState.priorityIndex - a.currentState.priorityIndex,
+    (a, b) => (b.currentState.priorityIndex ?? -1) - (a.currentState.priorityIndex ?? -1),
   );
 
-  const demandSeries = [
-    { month: 'Ene 26', historico: 59800, proyectado: null as number | null },
-    { month: 'Feb 26', historico: 61200, proyectado: null },
-    { month: 'Mar 26', historico: 62900, proyectado: null },
-    { month: 'Abr 26', historico: 63800, proyectado: null },
-    { month: 'May 26', historico: 64500, proyectado: null },
-    { month: 'Jun 26', historico: 66200, proyectado: null },
-    { month: 'Jul 26', historico: 67100, proyectado: null },
-    { month: 'Ago 26', historico: totalDemand, proyectado: totalDemand },
-    { month: 'Set 26', historico: null, proyectado: totalProjected },
-    { month: 'Oct 26', historico: null, proyectado: Math.round(totalProjected * 1.025) },
-    { month: 'Nov 26', historico: null, proyectado: Math.round(totalProjected * 1.042) },
-    { month: 'Dic 26', historico: null, proyectado: Math.round(totalProjected * 1.06) },
-  ];
+  const demandSeries = months.filter((month) => month <= territories[0].currentState.monthKey).slice(-12).map((month) => ({
+    month, historico: territories.every((territory) => territory.history?.[month] !== undefined)
+      ? territories.reduce((sum, territory) => sum + territory.history![month], 0) : null,
+    proyectado: null as number | null,
+  }));
+  demandSeries.push({ month: 'Próximo mes', historico: null as unknown as number, proyectado: totalProjected });
 
   return (
     <ViewContainer>
@@ -116,28 +104,22 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         <StatCard
           label="Población monitorizada"
           value={formatNumber(totalPopulation)}
-          delta="+1.2 % a/a"
-          deltaTone="neutral"
           hint="10 distritos"
         />
         <StatCard
-          label="IPRESS activas"
+          label="IPRESS registradas"
           value={facilities.length}
           hint="Catálogo RENIPRESS"
         />
         <StatCard
-          label="Atenciones del mes"
+          label="Consultas SIS del mes"
           value={formatNumber(totalDemand)}
-          delta="+3.8 % m/m"
-          deltaTone="neutral"
           hint={currentMonthLabel}
         />
         <StatCard
-          label="Demanda proyectada"
+          label="Consultas proyectadas"
           value={formatNumber(totalProjected)}
-          delta="+4.2 % est."
-          deltaTone="neutral"
-          hint="ST-GNN t+1"
+          hint="Persistencia estacional t+1"
         />
         <StatCard
           label="Distritos críticos"
@@ -152,7 +134,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         <StatCard
           label="Accesibilidad media"
           value={formatPercent(avgAccessibility)}
-          hint={`${avgTravelTime.toFixed(1)} min de viaje`}
+          hint={avgTravelTime === null ? 'Sin dato' : `${avgTravelTime.toFixed(1)} min de viaje aproximado`}
         />
       </div>
 
@@ -223,7 +205,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                           />
                           <span className="truncate text-[10px] text-muted-foreground">
                             {formatNumber(district.population)} hab ·{' '}
-                            {district.currentState.avgTravelTimeMinutes} min
+                            {district.currentState.avgTravelTimeMinutes === null ? 'Sin dato' : `${district.currentState.avgTravelTimeMinutes.toFixed(1)} min aprox.`}
                           </span>
                         </span>
                       </span>
@@ -269,7 +251,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
         <Card className="xl:col-span-5">
           <CardHeader>
-            <CardTitle hint="Histórico observado frente a proyección ST-GNN">
+            <CardTitle hint="Consultas SIS observadas frente a persistencia estacional">
               Evolución de la demanda sanitaria
             </CardTitle>
             <Button
@@ -333,7 +315,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                   <Area
                     type="monotone"
                     dataKey="proyectado"
-                    name="Proyección ST-GNN"
+                    name="Persistencia estacional"
                     stroke={chart.series[2]}
                     strokeWidth={2}
                     strokeDasharray="4 3"
@@ -358,7 +340,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                     backgroundImage: `repeating-linear-gradient(90deg, ${chart.series[2]} 0 4px, transparent 4px 7px)`,
                   }}
                 />
-                Proyección ST-GNN
+                Persistencia estacional
               </span>
             </div>
           </CardBody>
@@ -383,7 +365,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
               <Thead>
                 <tr>
                   <Th>Distrito</Th>
-                  <Th>Vulnerabilidad</Th>
+                  <Th>Pobreza 2018</Th>
                   <Th>Accesibilidad</Th>
                   <Th>Demanda / capacidad</Th>
                   <Th align="right">Prioridad</Th>
@@ -419,7 +401,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                           primary={formatPercent(
                             district.currentState.accessibilityIndex,
                           )}
-                          secondary={`${district.currentState.avgTravelTimeMinutes} min`}
+                          secondary={district.currentState.avgTravelTimeMinutes === null ? 'Sin dato' : `${district.currentState.avgTravelTimeMinutes.toFixed(1)} min aprox.`}
                         />
                       </Td>
                       <Td>

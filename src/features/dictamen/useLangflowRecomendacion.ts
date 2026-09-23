@@ -6,14 +6,14 @@ export function useLangflowRecomendacion() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generar = useCallback(async (districtId: number) => {
+  const generar = useCallback(async (districtId: number, datasetVersion?: string, monthKey?: string) => {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch('/api/v1/langflow/recomendacion', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ districtId }),
+        body: JSON.stringify({ districtId, datasetVersion, monthKey }),
       });
       const data = await res.json();
       if (!res.ok) {

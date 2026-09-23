@@ -187,7 +187,7 @@ export const MetropolitanMap: React.FC<MetropolitanMapProps> = ({
             ? t.sdoh.vulnerabilityIndex
             : simulationOverlay?.targetDistrictId === t.id
               ? simulationOverlay.afterPriority
-              : t.currentState.priorityIndex,
+              : t.currentState.priorityIndex ?? 0,
         colorOf: colorForScore,
         selectedId: selectedDistrictId,
         simulatedId: simulationOverlay?.targetDistrictId ?? null,
@@ -246,11 +246,11 @@ export const MetropolitanMap: React.FC<MetropolitanMapProps> = ({
           ))}
 
         {showFacilities &&
-          facilities.map((facility) => {
+          facilities.filter((facility) => facility.operationalStatus === 'Operativo' && facility.latitude !== null && facility.longitude !== null).map((facility) => {
             const isHospital =
               facility.category.startsWith('II') ||
               facility.category.startsWith('III');
-            const isOverloaded = facility.operationalStatus === 'Sobrecargado';
+            const isOverloaded = facility.pressureRatio !== null && facility.pressureRatio > 1;
             const color = isOverloaded
               ? palette.negative
               : isHospital
@@ -281,7 +281,7 @@ export const MetropolitanMap: React.FC<MetropolitanMapProps> = ({
                   </span>
                   <span className="mt-0.5 block text-[10px] opacity-75">
                     Cat. {facility.category} · {facility.districtName} ·{' '}
-                    {formatPercent(facility.pressureRatio)} de carga
+                    {facility.pressureRatio === null ? 'Sin referencia de capacidad' : `${formatPercent(facility.pressureRatio)} de carga SIS estimada`}
                   </span>
                 </MarkerTooltip>
               </MapMarker>
@@ -317,7 +317,7 @@ export const MetropolitanMap: React.FC<MetropolitanMapProps> = ({
                   {(
                     [
                       { id: 'priority', label: 'Prioridad' },
-                      { id: 'vulnerability', label: 'SDOH' },
+                      { id: 'vulnerability', label: 'Pobreza 2018' },
                     ] as const
                   ).map((opt) => (
                     <button
@@ -362,7 +362,7 @@ export const MetropolitanMap: React.FC<MetropolitanMapProps> = ({
               {hovered.name}
             </div>
             <div className="text-[10px] text-muted-foreground">
-              {layer === 'priority' ? 'Prioridad' : 'Vulnerabilidad'}:{' '}
+              {layer === 'priority' ? 'Prioridad' : 'Pobreza INEI 2018'}:{' '}
               <span className="font-semibold" style={{ color: hovered.color }}>
                 {formatPercent(hovered.score)}
               </span>
@@ -376,7 +376,7 @@ export const MetropolitanMap: React.FC<MetropolitanMapProps> = ({
         <div className="mb-1.5 text-[9.5px] font-semibold uppercase tracking-[0.14em] text-subtle-foreground">
           {layer === 'priority'
             ? 'Índice de prioridad sanitaria'
-            : 'Vulnerabilidad social (SDOH)'}
+            : 'Pobreza INEI 2018 (punto medio)'}
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {[...RISK_SCALE].reverse().map((step) => (
@@ -407,7 +407,7 @@ export const MetropolitanMap: React.FC<MetropolitanMapProps> = ({
                 className="size-2 rounded-full"
                 style={{ backgroundColor: palette.negative }}
               />
-              Sobrecargado
+              Presión SIS &gt; referencia
             </span>
           </div>
         )}
@@ -462,7 +462,7 @@ export const MetropolitanMap: React.FC<MetropolitanMapProps> = ({
             <div className="flex justify-between gap-2">
               <dt className="text-muted-foreground">Acceso</dt>
               <dd className="numeric font-semibold text-foreground">
-                {selectedTerritory.currentState.avgTravelTimeMinutes} min
+                {selectedTerritory.currentState.avgTravelTimeMinutes === null ? 'Sin dato' : `${selectedTerritory.currentState.avgTravelTimeMinutes.toFixed(1)} min aprox.`}
               </dd>
             </div>
             <div className="flex justify-between gap-2">

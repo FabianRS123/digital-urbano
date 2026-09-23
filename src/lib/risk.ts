@@ -59,17 +59,17 @@ export function getRiskDefinition(score: number): RiskDefinition {
   return RISK_SCALE.find((r) => score >= r.min) ?? RISK_SCALE[RISK_SCALE.length - 1];
 }
 
-export const getRiskLevel = (score: number): RiskLevel =>
-  getRiskDefinition(score).level;
+export const getRiskLevel = (score: number | null): RiskLevel | 'Sin dato' =>
+  score === null ? 'Sin dato' : getRiskDefinition(score).level;
 
-export const getRiskBadgeClass = (score: number) =>
-  getRiskDefinition(score).badgeClass;
+export const getRiskBadgeClass = (score: number | null) =>
+  score === null ? 'border-border text-muted-foreground' : getRiskDefinition(score).badgeClass;
 
-export const getRiskTextClass = (score: number) =>
-  getRiskDefinition(score).textClass;
+export const getRiskTextClass = (score: number | null) =>
+  score === null ? 'text-muted-foreground' : getRiskDefinition(score).textClass;
 
-export const getRiskFillClass = (score: number) =>
-  getRiskDefinition(score).fillClass;
+export const getRiskFillClass = (score: number | null) =>
+  score === null ? 'bg-muted' : getRiskDefinition(score).fillClass;
 
 /**
  * Resuelve el color real (hex/rgb) desde el DOM. Necesario para MapLibre y

@@ -7,17 +7,18 @@ export interface Territory {
   population: number;
   density: number; // hab/km2
   areaKm2: number;
-  elderlyPct: number; // % >60 years
-  childrenPct: number; // % <5 years
+  povertyInterval?: [number, number]; // intervalo publicado INEI 2018, en porcentaje
+  elderlyPct: number | null; // % >60 years
+  childrenPct: number | null; // % <5 years
   // SDOH (Social Determinants of Health)
   sdoh: {
     povertyRate: number; // 0 - 1
-    unemploymentRate: number; // 0 - 1
-    waterAccessDeficit: number; // % without continuous potable water
-    sanitationDeficit: number; // % without sewer system
-    overcrowdingRate: number; // % homes with >3 pers/room
-    illiteracyRate: number; // %
-    precariousHousingPct: number; // %
+    unemploymentRate: number | null; // 0 - 1
+    waterAccessDeficit: number | null; // % without continuous potable water
+    sanitationDeficit: number | null; // % without sewer system
+    overcrowdingRate: number | null; // % homes with >3 pers/room
+    illiteracyRate: number | null; // %
+    precariousHousingPct: number | null; // %
     vulnerabilityIndex: number; // Composite 0 - 1
     vulnerabilityQuintile: 1 | 2 | 3 | 4 | 5;
   };
@@ -27,6 +28,9 @@ export interface Territory {
     lng: number;
   };
   geoJsonCoords: [number, number][][];
+  geometry?: GeoJSON.Polygon | GeoJSON.MultiPolygon;
+  history?: Record<string, number>;
+  provenance?: Record<string, { origin: 'publicado' | 'estimado' | 'derivado' | 'no disponible'; sourceIds: string[]; period: string; method?: string }>;
   // Health Infrastructure summary
   activeFacilitiesCount: number;
   facilitiesByCategory: Record<string, number>;
@@ -38,17 +42,17 @@ export interface Territory {
 
 export interface TerritoryMonthlyMetrics {
   monthKey: string; // "2026-08"
-  historicalDemand: number; // Consultations / month
-  projectedDemand: number;
-  demandUncertaintyLower: number;
-  demandUncertaintyUpper: number;
-  accessibilityIndex: number; // 0 to 1 (1 = optimal, 0 = isolated)
-  avgTravelTimeMinutes: number; // min
-  avgDistanceKm: number;
-  healthcareCapacity: number; // capacity per month
-  systemPressure: number; // demand / capacity (e.g. 1.15 = 15% overload)
-  priorityIndex: number; // 0.00 to 1.00
-  hotspotCategory: 'Bajo' | 'Medio' | 'Alto' | 'Crítico';
+  historicalDemand: number | null; // Consultations / month
+  projectedDemand: number | null;
+  demandUncertaintyLower: number | null;
+  demandUncertaintyUpper: number | null;
+  accessibilityIndex: number | null; // 0 to 1 (1 = optimal, 0 = isolated)
+  avgTravelTimeMinutes: number | null; // min
+  avgDistanceKm: number | null;
+  healthcareCapacity: number | null; // capacity per month
+  systemPressure: number | null; // demand / capacity (e.g. 1.15 = 15% overload)
+  priorityIndex: number | null; // 0.00 to 1.00
+  hotspotCategory: 'Bajo' | 'Medio' | 'Alto' | 'Crítico' | 'Sin dato';
   trendPct: number; // vs previous month %
   contagionRisk: number; // 0 - 1
 }
@@ -57,19 +61,23 @@ export interface HealthFacility {
   id: string;
   code: string;
   name: string;
+  institution?: string;
+  classification?: string;
+  activitySis?: boolean;
+  capacityMethod?: string;
   districtId: number;
   districtName: string;
-  category: 'I-1' | 'I-2' | 'I-3' | 'I-4' | 'II-1' | 'II-2' | 'III-1';
-  type: 'Puesto de Salud' | 'Centro de Salud' | 'Hospital Distrital' | 'Hospital Regional / Nacional';
-  operationalStatus: 'Operativo' | 'Mantenimiento' | 'Sobrecargado' | 'Cierre Temporal';
-  schedule: '12 horas' | '24 horas' | '6 horas';
-  latitude: number;
-  longitude: number;
-  consultingRooms: number;
-  staffCount: number;
-  monthlyCapacity: number;
-  currentMonthlyDemand: number;
-  pressureRatio: number;
+  category: string;
+  type: string;
+  operationalStatus: string;
+  schedule: string;
+  latitude: number | null;
+  longitude: number | null;
+  consultingRooms: number | null;
+  staffCount: number | null;
+  monthlyCapacity: number | null;
+  currentMonthlyDemand: number | null;
+  pressureRatio: number | null;
   isDemo: boolean;
   phone?: string;
   address: string;
@@ -170,7 +178,7 @@ export interface DataSourceItem {
   institution?: string;
   acronym?: string;
   sourceType?: string;
-  description: string;
+  description?: string;
   lastUpdated?: string;
   lastSync?: string;
   recordsCount: number;
@@ -179,13 +187,19 @@ export interface DataSourceItem {
   coverageSpatial?: string;
   frequency?: string;
   updateFrequency?: string;
+  pageUrl?: string;
+  resourceUrl?: string;
+  resourceUrls?: string[];
+  period?: string;
+  fetchedAt?: string;
+  rejectedCount?: number;
 }
 
 export interface RiskFactorExplication {
   factor: string;
   category: 'SDOH' | 'Accesibilidad' | 'Demanda' | 'Infraestructura' | 'Espacial';
   weight: number; // percentage e.g. 0.35
-  score: number; // 0 to 1
+  score: number | null; // 0 to 1
   impact: string;
   description: string;
 }
@@ -246,6 +260,8 @@ export interface DictamenNarrativa {
 }
 
 export interface DictamenTecnico {
+  datasetVersion?: string;
+  sources?: { id: string; name: string; pageUrl: string; resourceUrl: string; resourceUrls?: string[]; period: string; fetchedAt: string }[];
   codigo: string;
   fechaEmision: string;
   periodo: string;
@@ -259,7 +275,7 @@ export interface DictamenTecnico {
     areaKm2: number;
   };
   clasificacion: {
-    prioridad: number;
+    prioridad: number | null;
     categoria: string;
     quintil: number;
     rankingMetropolitano: number;
@@ -271,7 +287,7 @@ export interface DictamenTecnico {
     factor: string;
     categoria: string;
     peso: number;
-    puntuacion: number;
+    puntuacion: number | null;
     impacto: string;
   }[];
   ipress: {
@@ -279,11 +295,11 @@ export interface DictamenTecnico {
     categoria: string;
     estado: string;
     horario: string;
-    capacidad: number;
-    demanda: number;
-    carga: number;
+    capacidad: number | null;
+    demanda: number | null;
+    carga: number | null;
   }[];
-  vecinos: { nombre: string; prioridad: number; categoria: string; presion: number }[];
+  vecinos: { nombre: string; prioridad: number | null; categoria: string; presion: number | null }[];
   narrativa: DictamenNarrativa;
   notaEtica: string;
   fuente: {

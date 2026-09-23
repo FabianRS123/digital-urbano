@@ -1,5 +1,5 @@
 import { Territory, SimulationResult, InterventionParams, HealthFacility } from '../types';
-import { getHotspotCategory } from '../data/trujilloData';
+import { getHotspotCategory } from './riskThresholds';
 
 export class DigitalTwinEngine {
   /**
@@ -34,7 +34,7 @@ export class DigitalTwinEngine {
     let newAccessibility = simTarget.currentState.accessibilityIndex;
     let newCapacity = simTarget.currentState.healthcareCapacity;
     let newTravelTime = simTarget.currentState.avgTravelTimeMinutes;
-    let newDemand = simTarget.currentState.projectedDemand;
+    let newDemand = simTarget.currentState.historicalDemand;
     let verdictText = '';
 
     if (params.type === 'new_facility') {
@@ -63,12 +63,12 @@ export class DigitalTwinEngine {
         ? allFacilities.find(f => f.id === params.targetFacilityId)
         : undefined;
 
-      const reduction = closedFacility
-        ? Math.min(closedFacility.monthlyCapacity, newCapacity - 800)
+      const reduction = closedFacility && closedFacility.monthlyCapacity !== null
+        ? Math.min(closedFacility.monthlyCapacity, newCapacity)
         : Math.round(newCapacity * 0.40);
       const share = newCapacity > 0 ? reduction / newCapacity : 0.4;
 
-      newCapacity = Math.max(newCapacity - reduction, 800);
+      newCapacity = Math.max(newCapacity - reduction, 1);
       newAccessibility = Math.max(newAccessibility - 0.20 * (share / 0.4), 0.15);
       newTravelTime = newTravelTime * (1 + 0.35 * (share / 0.4));
 
@@ -101,7 +101,7 @@ export class DigitalTwinEngine {
         pressureDeltaPct = -2.0;
       }
       const newNP = Math.round(nTerr.currentState.systemPressure * (1 + pressureDeltaPct / 100) * 100) / 100;
-      const newNPriority = this.calculatePriorityIndex(nTerr.sdoh.vulnerabilityIndex, newNP, nTerr.currentState.accessibilityIndex);
+      const newNPriority = this.calculatePriorityIndex(nTerr.sdoh.vulnerabilityIndex, newNP, nTerr.currentState.accessibilityIndex, nTerr.currentState.contagionRisk * 0.8);
       return {
         districtId: nTerr.id,
         districtName: nTerr.name,
@@ -136,7 +136,7 @@ export class DigitalTwinEngine {
       },
       after: {
         priorityIndex: newPriority,
-        accessibilityIndex: Math.round(newAccessibility * 100) / 100,
+        accessibilityIndex: newAccessibility,
         systemPressure: newPressure,
         projectedDemand: newDemand,
         hotspotCategory: newHotspot,
@@ -154,7 +154,7 @@ export class DigitalTwinEngine {
       },
       affectedNeighbors: neighborDeltas,
       verdict: verdictText,
-      aiExplanation: `Simulación calculada bajo el modelo espacio-temporal calibrado. La intervención en ${target.name} impacta la accesibilidad geográfica y la distribución de demanda en ${neighborDeltas.length} distritos adyacentes del Área Metropolitana.`
+      aiExplanation: `Escenario hipotético con efectos fijos en acceso, capacidad y presión de vecinos. Los cambios estimados para ${target.name} y ${neighborDeltas.length} distritos colindantes no son impactos observados.`
     };
   }
 }

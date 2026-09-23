@@ -34,14 +34,6 @@ interface FacilitiesCatalogProps {
   onOpenSimulatorForFacility: (facility: HealthFacility) => void;
 }
 
-const CATEGORIES = ['I-1', 'I-2', 'I-3', 'I-4', 'II-1', 'II-2', 'III-1'];
-const STATUSES = [
-  'Operativo',
-  'Sobrecargado',
-  'Mantenimiento',
-  'Cierre Temporal',
-];
-
 export const FacilitiesCatalog: React.FC<FacilitiesCatalogProps> = ({
   facilities,
   territories,
@@ -53,6 +45,8 @@ export const FacilitiesCatalog: React.FC<FacilitiesCatalogProps> = ({
   const [districtFilter, setDistrictFilter] = useState('ALL');
   const [status, setStatus] = useState('ALL');
   const [active, setActive] = useState<HealthFacility | null>(null);
+  const categories = useMemo(() => [...new Set(facilities.map((item) => item.category))].sort(), [facilities]);
+  const statuses = useMemo(() => [...new Set(facilities.map((item) => item.operationalStatus))].sort(), [facilities]);
 
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -92,7 +86,7 @@ export const FacilitiesCatalog: React.FC<FacilitiesCatalogProps> = ({
       <PageHeader
         eyebrow="Panorama"
         title="Catálogo de infraestructura IPRESS"
-        description="Registro Nacional de Establecimientos de Salud (RENIPRESS / SUSALUD) en el Área Metropolitana de Trujillo."
+        description="Catálogo RENIPRESS de diez distritos. La actividad SIS y la referencia de capacidad se muestran solo donde hay datos válidos."
         actions={
           <Badge tone="outline" mono>
             {filtered.length} de {facilities.length}
@@ -133,7 +127,7 @@ export const FacilitiesCatalog: React.FC<FacilitiesCatalogProps> = ({
             aria-label="Filtrar por categoría"
           >
             <option value="ALL">Todas las categorías</option>
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <option key={c} value={c}>
                 Categoría {c}
               </option>
@@ -147,7 +141,7 @@ export const FacilitiesCatalog: React.FC<FacilitiesCatalogProps> = ({
               aria-label="Filtrar por estado operativo"
             >
               <option value="ALL">Todos los estados</option>
-              {STATUSES.map((s) => (
+              {statuses.map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>
@@ -194,15 +188,13 @@ export const FacilitiesCatalog: React.FC<FacilitiesCatalogProps> = ({
                     <Th>Distrito</Th>
                     <Th align="center">Categoría</Th>
                     <Th>Horario</Th>
-                    <Th align="right">Capacidad</Th>
-                    <Th>Carga asistencial</Th>
+                    <Th align="right">Referencia SIS</Th>
+                    <Th>Presión SIS / referencia</Th>
                     <Th align="center">Estado</Th>
                   </tr>
                 </Thead>
                 <Tbody>
                   {filtered.map((facility) => {
-                    const overloaded =
-                      facility.operationalStatus === 'Sobrecargado';
                     const overCapacity = facility.pressureRatio > 1;
                     return (
                       <Tr
@@ -237,20 +229,20 @@ export const FacilitiesCatalog: React.FC<FacilitiesCatalogProps> = ({
                           <CellStack
                             className="text-right"
                             primary={formatNumber(facility.monthlyCapacity)}
-                            secondary={`${facility.consultingRooms} consultorios`}
+                            secondary={facility.activitySis ? 'Con actividad SIS' : 'Sin actividad SIS asociada'}
                           />
                         </Td>
                         <Td>
                           <div className="flex items-center gap-2">
-                            <Meter
+                            {facility.pressureRatio !== null && <Meter
                               value={Math.min(facility.pressureRatio, 1.4) / 1.4}
                               reference={1 / 1.4}
-                              referenceLabel="Capacidad instalada (100 %)"
+                              referenceLabel="Referencia SIS estimada (100 %)"
                               barClassName={
                                 overCapacity ? 'bg-negative' : 'bg-primary'
                               }
                               className="h-1 w-14"
-                            />
+                            />}
                             <span
                               className={
                                 overCapacity
@@ -263,7 +255,7 @@ export const FacilitiesCatalog: React.FC<FacilitiesCatalogProps> = ({
                           </div>
                         </Td>
                         <Td align="center">
-                          <Badge tone={overloaded ? 'negative' : 'positive'}>
+                          <Badge tone={facility.operationalStatus === 'Operativo' ? 'positive' : 'neutral'}>
                             {facility.operationalStatus}
                           </Badge>
                         </Td>
@@ -313,10 +305,8 @@ export const FacilitiesCatalog: React.FC<FacilitiesCatalogProps> = ({
                   }
                 />
                 <DataRow label="Horario" value={active.schedule} />
-                <DataRow
-                  label="Consultorios / personal"
-                  value={`${active.consultingRooms} / ${active.staffCount}`}
-                />
+                <DataRow label="Institución" value={active.institution ?? 'Sin dato'} />
+                <DataRow label="Consultorios / personal" value="Sin dato en RENIPRESS" />
                 {active.phone && (
                   <DataRow label="Teléfono" value={active.phone} />
                 )}
@@ -325,17 +315,17 @@ export const FacilitiesCatalog: React.FC<FacilitiesCatalogProps> = ({
               <div className="rounded-lg border border-border bg-surface-sunken/60 p-3">
                 <div className="divide-y divide-border">
                   <DataRow
-                    label="Capacidad mensual"
-                    value={`${formatNumber(active.monthlyCapacity)} consultas`}
+                    label="Referencia mensual estimada"
+                    value={active.monthlyCapacity === null ? 'Sin referencia SIS' : `${formatNumber(active.monthlyCapacity)} consultas estimadas`}
                   />
                   <DataRow
-                    label="Demanda registrada"
-                    value={`${formatNumber(active.currentMonthlyDemand)} atenciones`}
+                    label="Consultas SIS registradas"
+                    value={active.currentMonthlyDemand === null ? 'Sin actividad SIS' : `${formatNumber(active.currentMonthlyDemand)} consultas SIS`}
                   />
                 </div>
-                <div className="mt-3 space-y-1.5">
+                {active.pressureRatio !== null && <div className="mt-3 space-y-1.5">
                   <div className="flex items-baseline justify-between text-[10.5px] font-semibold text-muted-foreground">
-                    <span>Carga asistencial</span>
+                    <span>Presión SIS / referencia</span>
                     <span className="numeric">
                       {formatPercent(active.pressureRatio)}
                     </span>
@@ -343,12 +333,18 @@ export const FacilitiesCatalog: React.FC<FacilitiesCatalogProps> = ({
                   <Meter
                     value={Math.min(active.pressureRatio, 1.4) / 1.4}
                     reference={1 / 1.4}
-                    referenceLabel="Capacidad instalada (100%)"
+                    referenceLabel="Referencia SIS estimada (100%)"
                     barClassName={
                       active.pressureRatio > 1 ? 'bg-negative' : 'bg-primary'
                     }
                   />
-                </div>
+                </div>}
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                <p>{active.capacityMethod ?? 'Sin referencia de capacidad'}</p>
+                <a className="underline" href="https://www.datosabiertos.gob.pe/dataset/registro-nacional-de-entidades-prestadoras-de-servicios-de-salud-renipress" target="_blank" rel="noreferrer">Ficha RENIPRESS</a>
+                {' · '}<a className="underline" href="https://www.datosabiertos.gob.pe/dataset/datos-de-atenciones-realizadas-los-asegurados-sis" target="_blank" rel="noreferrer">Consultas SIS</a>
               </div>
 
               <div className="rounded-lg border border-border bg-surface-sunken/60 p-3">
@@ -359,7 +355,7 @@ export const FacilitiesCatalog: React.FC<FacilitiesCatalogProps> = ({
                   {active.address}
                 </p>
                 <p className="mt-1 font-mono text-[10px] text-subtle-foreground">
-                  {active.latitude.toFixed(4)}, {active.longitude.toFixed(4)}
+                  {active.latitude === null || active.longitude === null ? 'Sin coordenadas válidas: no localizable en el mapa' : `${active.latitude.toFixed(4)}, ${active.longitude.toFixed(4)}`}
                 </p>
               </div>
 
@@ -370,7 +366,7 @@ export const FacilitiesCatalog: React.FC<FacilitiesCatalogProps> = ({
                   onClick={() => onOpenSimulatorForFacility(active)}
                 >
                   <SlidersHorizontal className="size-3.5" />
-                  Simular ampliación o contingencia
+                  Abrir simulador del distrito
                 </Button>
                 <Button
                   className="justify-center"

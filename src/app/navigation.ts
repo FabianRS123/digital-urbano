@@ -83,7 +83,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         id: 'predictions',
-        label: 'Predicción ST-GNN',
+        label: 'Proyección estacional',
         description: 'Proyección espacio-temporal de demanda',
         icon: TrendingUp,
       },

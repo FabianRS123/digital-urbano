@@ -1,4 +1,4 @@
-import type { Feature, FeatureCollection, Polygon } from 'geojson';
+import type { Feature, FeatureCollection, Polygon, MultiPolygon } from 'geojson';
 import { Territory } from '../../types';
 
 /**
@@ -25,7 +25,7 @@ export interface DistrictFeatureProps {
   [key: string]: unknown;
 }
 
-export type DistrictFeature = Feature<Polygon, DistrictFeatureProps>;
+export type DistrictFeature = Feature<Polygon | MultiPolygon, DistrictFeatureProps>;
 
 export function buildDistrictCollection(
   territories: Territory[],
@@ -36,7 +36,7 @@ export function buildDistrictCollection(
     selectedId?: number | null;
     simulatedId?: number | null;
   },
-): FeatureCollection<Polygon, DistrictFeatureProps> {
+): FeatureCollection<Polygon | MultiPolygon, DistrictFeatureProps> {
   return {
     type: 'FeatureCollection',
     features: territories.map((t) => {
@@ -44,7 +44,7 @@ export function buildDistrictCollection(
       return {
         type: 'Feature',
         id: t.id,
-        geometry: {
+        geometry: t.geometry ?? {
           type: 'Polygon',
           coordinates: t.geoJsonCoords.map(toGeoJsonRing),
         },

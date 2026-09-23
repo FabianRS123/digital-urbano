@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { HealthFacility, Territory } from '../../types';
+import { DataSourceItem, HealthFacility, Territory } from '../../types';
 import {
   generateDistrictTimeSeries,
   getRiskFactorsExplanation,
@@ -39,24 +39,18 @@ import { getRiskBadgeClass, getRiskLevel } from '../../lib/risk';
 
 interface TerritoryDetailProps {
   territories: Territory[];
+  datasetVersion: string;
+  sources: DataSourceItem[];
   selectedDistrictId: number;
   facilities: HealthFacility[];
   onSelectDistrict: (id: number) => void;
   onOpenSimulatorForDistrict: (districtId: number) => void;
 }
 
-/** Promedios metropolitanos de referencia para los indicadores SDOH. */
-const SDOH_REFERENCE = {
-  povertyRate: 0.28,
-  waterAccessDeficit: 0.19,
-  sanitationDeficit: 0.22,
-  overcrowdingRate: 0.16,
-  precariousHousingPct: 0.25,
-  illiteracyRate: 0.04,
-} as const;
-
 export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
   territories,
+  datasetVersion,
+  sources,
   selectedDistrictId,
   facilities,
   onSelectDistrict,
@@ -99,7 +93,7 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
   useEffect(() => {
     limpiar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [district.id]);
+  }, [district.id, district.currentState.monthKey, datasetVersion]);
 
   const score = district.currentState.priorityIndex;
 
@@ -139,28 +133,38 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
         }
       />
 
+      <Card><CardBody className="space-y-1 p-4 text-xs text-muted-foreground">
+        <strong className="text-foreground">Procedencia · versión {datasetVersion} · mes SIS {district.currentState.monthKey}</strong>
+        <p>Pobreza INEI 2018: intervalo publicado {district.povertyInterval?.[0] ?? 'Sin dato'} % – {district.povertyInterval?.[1] ?? 'Sin dato'} %; punto medio usado en el modelo {formatPercent(district.sdoh.povertyRate)}.</p>
+        {Object.entries(district.provenance ?? {}).map(([indicator, provenance]) => <p key={indicator}>
+          {indicator}: {provenance.origin ?? 'Sin dato'} · {provenance.period} · {provenance.method ?? ''} ·{' '}
+          {(provenance.sourceIds ?? []).map((id) => { const source = sources.find((item) => item.id === id);
+            return source ? <a key={id} className="underline" href={source.pageUrl} target="_blank" rel="noreferrer">{source.name} </a> : null; })}
+        </p>)}
+      </CardBody></Card>
+
       {/* Indicadores del distrito --------------------------------------- */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="Población"
           value={formatNumber(district.population)}
           unit="hab"
-          hint={`${district.elderlyPct}% adultos mayores · ${district.childrenPct}% menores de 5`}
+          hint={`Población proyectada INEI ${district.currentState.monthKey.slice(0, 4)}`}
         />
         <StatCard
-          label="Vulnerabilidad SDOH"
+          label="Pobreza INEI 2018"
           value={formatPercent(district.sdoh.vulnerabilityIndex)}
-          hint={`Quintil ${district.sdoh.vulnerabilityQuintile} · ${formatPercent(district.sdoh.povertyRate)} de pobreza`}
+          hint={`Quintil distrital ${district.sdoh.vulnerabilityQuintile} · punto medio del intervalo`}
         />
         <StatCard
           label="Accesibilidad"
           value={formatPercent(district.currentState.accessibilityIndex)}
-          hint={`${district.currentState.avgTravelTimeMinutes} min · ${district.currentState.avgDistanceKm} km`}
+          hint={district.currentState.avgTravelTimeMinutes === null ? 'Sin IPRESS pública localizable' : `${district.currentState.avgTravelTimeMinutes.toFixed(1)} min aprox. · ${district.currentState.avgDistanceKm?.toFixed(1)} km geográficos`}
         />
         <StatCard
-          label="Presión asistencial"
+          label="Presión SIS / referencia"
           value={formatPercent(district.currentState.systemPressure)}
-          hint={`${formatNumber(district.currentState.historicalDemand)} demanda / ${formatNumber(district.currentState.healthcareCapacity)} capacidad`}
+          hint={`${formatNumber(district.currentState.historicalDemand)} consultas SIS / ${formatNumber(district.currentState.healthcareCapacity)} referencia estimada`}
           accent={district.currentState.systemPressure > 1}
         />
       </div>
@@ -169,11 +173,11 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
         <Card className="xl:col-span-7">
           <CardHeader>
-            <CardTitle hint="Atenciones observadas frente al intervalo de predicción ST-GNN">
-              Serie temporal de demanda
+            <CardTitle hint="Consultas SIS observadas y persistencia estacional">
+              Serie de consultas externas SIS
             </CardTitle>
             <Badge tone="outline" mono>
-              ST-GNN v1.4
+              Persistencia estacional
             </Badge>
           </CardHeader>
           <CardBody className="pt-4">
@@ -224,7 +228,7 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
                   <Line
                     type="monotone"
                     dataKey="historicalValue"
-                    name="Demanda observada"
+                    name="Consultas SIS observadas"
                     stroke={chart.series[0]}
                     strokeWidth={2}
                     dot={false}
@@ -232,7 +236,7 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
                   <Line
                     type="monotone"
                     dataKey="predictedValue"
-                    name="Predicción ST-GNN"
+                    name="Persistencia estacional"
                     stroke={chart.series[2]}
                     strokeWidth={2}
                     strokeDasharray="4 3"
@@ -256,7 +260,7 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
                     backgroundImage: `repeating-linear-gradient(90deg, ${chart.series[2]} 0 4px, transparent 4px 7px)`,
                   }}
                 />
-                Predicción ST-GNN
+                Persistencia estacional
               </span>
               <span className="flex items-center gap-1.5">
                 <span
@@ -271,7 +275,7 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
 
         <Card className="xl:col-span-5">
           <CardHeader>
-            <CardTitle hint="Censo INEI y Encuesta Demográfica; la marca vertical es el promedio metropolitano">
+            <CardTitle hint="Pobreza INEI 2018; los demás determinantes no tienen fuente integrada">
               Determinantes sociales de la salud
             </CardTitle>
             <Badge tone="outline" mono>
@@ -282,32 +286,32 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
             <SdohBar
               label="Pobreza monetaria"
               value={district.sdoh.povertyRate}
-              reference={SDOH_REFERENCE.povertyRate}
+              reference={territories.reduce((sum, item) => sum + item.sdoh.povertyRate, 0) / territories.length}
             />
             <SdohBar
               label="Déficit de agua potable"
               value={district.sdoh.waterAccessDeficit}
-              reference={SDOH_REFERENCE.waterAccessDeficit}
+              reference={null}
             />
             <SdohBar
               label="Déficit de saneamiento"
               value={district.sdoh.sanitationDeficit}
-              reference={SDOH_REFERENCE.sanitationDeficit}
+              reference={null}
             />
             <SdohBar
               label="Hacinamiento crítico"
               value={district.sdoh.overcrowdingRate}
-              reference={SDOH_REFERENCE.overcrowdingRate}
+              reference={null}
             />
             <SdohBar
               label="Vivienda precaria o informal"
               value={district.sdoh.precariousHousingPct}
-              reference={SDOH_REFERENCE.precariousHousingPct}
+              reference={null}
             />
             <SdohBar
               label="Analfabetismo"
               value={district.sdoh.illiteracyRate}
-              reference={SDOH_REFERENCE.illiteracyRate}
+              reference={null}
             />
           </CardBody>
         </Card>
@@ -317,7 +321,7 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
         <Card className="xl:col-span-6">
           <CardHeader>
-            <CardTitle hint="Metodología SHAP / atribución del grafo">
+            <CardTitle hint="Descomposición directa de la fórmula de prioridad">
               Descomposición del riesgo territorial
             </CardTitle>
           </CardHeader>
@@ -418,7 +422,7 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
             <div className="border-t border-border pt-3">
               <Button
                 variant="primary"
-                onClick={() => generar(district.id)}
+                onClick={() => generar(district.id, 'Investigador', datasetVersion, district.currentState.monthKey)}
                 disabled={dictamenLoading}
                 className="w-full justify-center"
               >
@@ -443,7 +447,7 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
               )}
               <Button
                 variant="secondary"
-                onClick={() => generarLangflow(district.id)}
+                onClick={() => generarLangflow(district.id, datasetVersion, district.currentState.monthKey)}
                 disabled={langflowLoading}
                 className="mt-2 w-full justify-center"
               >
@@ -477,10 +481,11 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
 
 const SdohBar: React.FC<{
   label: string;
-  value: number;
-  reference: number;
+  value: number | null;
+  reference: number | null;
 }> = ({ label, value, reference }) => {
-  const aboveAverage = value > reference;
+  const aboveAverage = value !== null && reference !== null && value > reference;
+  if (value === null) return <div className="flex justify-between text-xs"><span>{label}</span><span>Sin dato</span></div>;
   return (
     <div className="space-y-1.5">
       <div className="flex items-baseline justify-between gap-2 text-[11.5px]">
@@ -496,14 +501,14 @@ const SdohBar: React.FC<{
             {formatPercent(value)}
           </span>
           <span className="text-[10px] text-subtle-foreground">
-            prom. {formatPercent(reference)}
+            {reference === null ? '' : `prom. ${formatPercent(reference)}`}
           </span>
         </span>
       </div>
       <Meter
         value={value}
-        reference={reference}
-        referenceLabel={`Promedio metropolitano: ${formatPercent(reference)}`}
+        reference={reference ?? undefined}
+        referenceLabel={reference === null ? undefined : `Promedio metropolitano: ${formatPercent(reference)}`}
         barClassName={aboveAverage ? 'bg-negative' : 'bg-primary'}
       />
     </div>

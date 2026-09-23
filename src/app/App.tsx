@@ -19,58 +19,62 @@ import { AIModelsBenchmarkView } from '../features/models/AIModelsBenchmarkView'
 import { DataSourcesView } from '../features/datasources/DataSourcesView';
 import { ReportsView } from '../features/reports/ReportsView';
 
-import {
-  AVAILABLE_MONTHS,
-  INITIAL_DISTRICTS,
-  INITIAL_FACILITIES,
-} from '../data/trujilloData';
-import { HealthFacility, SimulationResult, Territory } from '../types';
-import { DigitalTwinEngine } from '../lib/simulationEngine';
+import { HealthFacility, SimulationResult, Territory, AIModelBenchmark, EquityMetric, DataSourceItem } from '../types';
+import { monthLabel } from '../lib/officialModel';
 
-/** Índice del mes base (Ago 2026) dentro de AVAILABLE_MONTHS. */
-const BASE_MONTH_INDEX = AVAILABLE_MONTHS.findIndex(
-  (m) => m.key === '2026-08',
-);
+interface Bootstrap {
+  version: string; createdAt: string; checkedAt: string; month: string; months: string[]; territories: Territory[];
+  facilities: HealthFacility[]; sources: DataSourceItem[]; warnings: string[];
+  benchmarks: AIModelBenchmark[]; equity: EquityMetric[];
+}
 
 function DigitalTwinApp() {
   const [currentTab, setCurrentTab] = useState<NavigationTab>('overview');
   const [navOpen, setNavOpen] = useState(false);
   const [selectedDistrictId, setSelectedDistrictId] = useState<number>(2);
 
-  const [currentMonthIndex, setCurrentMonthIndex] =
-    useState<number>(BASE_MONTH_INDEX);
+  const [currentMonthIndex, setCurrentMonthIndex] = useState(0);
   const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
 
   const [currentRole, setCurrentRole] = useState<string>('Investigador');
 
-  const [territories, setTerritories] = useState<Territory[]>(INITIAL_DISTRICTS);
-  const [facilities] = useState<HealthFacility[]>(INITIAL_FACILITIES);
+  const [data, setData] = useState<Bootstrap | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const months = data?.months ?? [];
+  const territories = data?.territories ?? [];
+  const facilities = data?.facilities ?? [];
 
   const [activeSimulationResult, setActiveSimulationResult] =
     useState<SimulationResult | null>(null);
   const [savedScenarios, setSavedScenarios] = useState<SimulationResult[]>([]);
 
   /* ---------------------------------------------------------------------- */
-  /* Línea de base                                                          */
+  /* Datos oficiales                                                         */
   /* ---------------------------------------------------------------------- */
 
   useEffect(() => {
-    const baseline = DigitalTwinEngine.runSimulation(
-      INITIAL_DISTRICTS,
-      INITIAL_FACILITIES,
-      {
-        type: 'new_facility',
-        targetDistrictId: 2,
-        newFacilityName: 'Centro de Salud Materno Infantil Florencia Norte',
-        newFacilityCategory: 'I-4',
-        newFacilityCapacity: 2800,
-      },
-      'Línea de base: nueva IPRESS I-4 en El Porvenir',
-      'Investigador Principal',
-    );
-    setActiveSimulationResult(baseline);
-    setSavedScenarios([baseline]);
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch('/api/v1/bootstrap');
+        if (!res.ok) throw new Error((await res.json()).error ?? `HTTP ${res.status}`);
+        const payload = await res.json() as Bootstrap;
+        if (!cancelled) { setData(payload); setCurrentMonthIndex(payload.months.indexOf(payload.month)); setLoadError(null); }
+      } catch (error) { if (!cancelled) { setLoadError(String(error)); window.setTimeout(load, 5000); } }
+    };
+    void load();
+    return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (!data || !months[currentMonthIndex] || months[currentMonthIndex] === data.month) return;
+    const controller = new AbortController();
+    void fetch(`/api/v1/bootstrap?month=${months[currentMonthIndex]}`, { signal: controller.signal })
+      .then(async (res) => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json() as Promise<Bootstrap>; })
+      .then((payload) => { setData(payload); setActiveSimulationResult(null); })
+      .catch((error) => { if (error.name !== 'AbortError') setLoadError(String(error)); });
+    return () => controller.abort();
+  }, [currentMonthIndex, months.join(','), data?.version]);
 
   /* ---------------------------------------------------------------------- */
   /* Reproductor de la línea de tiempo                                      */
@@ -81,72 +85,20 @@ function DigitalTwinApp() {
 
     const interval = window.setInterval(() => {
       setCurrentMonthIndex((prev) =>
-        prev >= AVAILABLE_MONTHS.length - 1 ? prev : prev + 1,
+        prev >= months.length - 1 ? prev : prev + 1,
       );
     }, 1400);
 
     return () => window.clearInterval(interval);
-  }, [isPlayingTimeline]);
+  }, [isPlayingTimeline, months.length]);
 
   // La detención al llegar al final vive en su propio efecto: llamar a
   // setState dentro de un updater es un efecto colateral prohibido en React.
   useEffect(() => {
-    if (isPlayingTimeline && currentMonthIndex >= AVAILABLE_MONTHS.length - 1) {
+    if (isPlayingTimeline && currentMonthIndex >= months.length - 1) {
       setIsPlayingTimeline(false);
     }
-  }, [currentMonthIndex, isPlayingTimeline]);
-
-  /* ---------------------------------------------------------------------- */
-  /* Dinámica temporal del territorio                                       */
-  /* ---------------------------------------------------------------------- */
-
-  useEffect(() => {
-    const month = AVAILABLE_MONTHS[currentMonthIndex];
-    if (!month) return;
-
-    const stepDiff = currentMonthIndex - BASE_MONTH_INDEX;
-    const factor = 1 + stepDiff * 0.006;
-
-    // Siempre se recalcula desde INITIAL_DISTRICTS para que el estado no
-    // acumule deriva al navegar hacia atrás y hacia adelante en el tiempo.
-    setTerritories(
-      INITIAL_DISTRICTS.map((t) => {
-        const adjustedDemand = Math.round(
-          t.currentState.historicalDemand * factor,
-        );
-        const pressure =
-          Math.round(
-            (adjustedDemand / t.currentState.healthcareCapacity) * 100,
-          ) / 100;
-        const priority = DigitalTwinEngine.calculatePriorityIndex(
-          t.sdoh.vulnerabilityIndex,
-          pressure,
-          t.currentState.accessibilityIndex,
-          t.currentState.contagionRisk * 0.8,
-        );
-
-        return {
-          ...t,
-          currentState: {
-            ...t.currentState,
-            monthKey: month.key,
-            historicalDemand: adjustedDemand,
-            projectedDemand: Math.round(adjustedDemand * 1.03),
-            systemPressure: pressure,
-            priorityIndex: priority,
-            hotspotCategory:
-              priority >= 0.8
-                ? 'Crítico'
-                : priority >= 0.6
-                  ? 'Alto'
-                  : priority >= 0.4
-                    ? 'Medio'
-                    : 'Bajo',
-          },
-        };
-      }),
-    );
-  }, [currentMonthIndex]);
+  }, [currentMonthIndex, isPlayingTimeline, months.length]);
 
   /* ---------------------------------------------------------------------- */
   /* Acciones                                                                */
@@ -176,7 +128,7 @@ function DigitalTwinApp() {
   }, []);
 
   const currentMonthLabel =
-    AVAILABLE_MONTHS[currentMonthIndex]?.label ?? 'Ago 2026';
+    months[currentMonthIndex] ? monthLabel(months[currentMonthIndex]) : 'Cargando';
 
   const simulationOverlay = activeSimulationResult
     ? {
@@ -185,6 +137,8 @@ function DigitalTwinApp() {
         afterPriority: activeSimulationResult.after.priorityIndex,
       }
     : null;
+
+  if (!data) return <div className="p-8 text-sm text-foreground">{loadError ?? 'Cargando datos oficiales…'}<p className="mt-2 text-muted-foreground">Si es la primera ejecución, el servidor está preparando los archivos SIS.</p></div>;
 
   return (
     <AppShell
@@ -195,12 +149,13 @@ function DigitalTwinApp() {
       onCloseNav={() => setNavOpen(false)}
       topbar={
         <Topbar
+          months={months.map((key) => ({ key, label: monthLabel(key), isProjected: false }))}
           currentMonthIndex={currentMonthIndex}
           onSelectMonthIndex={setCurrentMonthIndex}
           isPlayingTimeline={isPlayingTimeline}
           onTogglePlayTimeline={() => setIsPlayingTimeline((p) => !p)}
           onResetTimeline={() => {
-            setCurrentMonthIndex(BASE_MONTH_INDEX);
+            setCurrentMonthIndex(months.length - 1);
             setIsPlayingTimeline(false);
           }}
           currentRole={currentRole}
@@ -218,6 +173,7 @@ function DigitalTwinApp() {
           onSelectDistrict={setSelectedDistrictId}
           onNavigateTab={setCurrentTab}
           currentMonthLabel={currentMonthLabel}
+          months={months}
         />
       )}
 
@@ -235,6 +191,8 @@ function DigitalTwinApp() {
       {currentTab === 'territories' && (
         <TerritoryDetail
           territories={territories}
+          datasetVersion={data.version}
+          sources={data.sources}
           selectedDistrictId={selectedDistrictId}
           facilities={facilities}
           onSelectDistrict={setSelectedDistrictId}
@@ -279,6 +237,8 @@ function DigitalTwinApp() {
         <InterventionSimulator
           territories={territories}
           facilities={facilities}
+          datasetVersion={data.version}
+          monthKey={data.month}
           initialDistrictId={selectedDistrictId}
           onSimulationComplete={handleSimulationComplete}
           onNavigateToComparison={() => setCurrentTab('comparison')}
@@ -306,15 +266,22 @@ function DigitalTwinApp() {
         />
       )}
 
-      {currentTab === 'equity' && <EquityFairnessView />}
-      {currentTab === 'models' && <AIModelsBenchmarkView />}
-      {currentTab === 'datasources' && <DataSourcesView />}
+      {currentTab === 'equity' && <EquityFairnessView metrics={data.equity} />}
+      {currentTab === 'models' && <AIModelsBenchmarkView models={data.benchmarks} />}
+      {currentTab === 'datasources' && <DataSourcesView sources={data.sources} version={data.version} createdAt={data.createdAt} checkedAt={data.checkedAt} onUpdated={async () => {
+        const res = await fetch('/api/v1/bootstrap'); if (res.ok) { const next = await res.json() as Bootstrap;
+          setData(next); setCurrentMonthIndex(next.months.indexOf(next.month));
+          setActiveSimulationResult(null); setSavedScenarios([]); }
+      }} />}
 
       {currentTab === 'reports' && (
         <ReportsView
           territories={territories}
           facilities={facilities}
           latestSimulation={activeSimulationResult}
+          sources={data.sources}
+          datasetVersion={data.version}
+          monthKey={data.month}
         />
       )}
     </AppShell>
