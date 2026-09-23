@@ -17,6 +17,7 @@ import {
 } from '../../lib/spatiotemporalGnn';
 import { DictamenReport } from '../dictamen/DictamenReport';
 import { useDictamen } from '../dictamen/useDictamen';
+import { useLangflowRecomendacion } from '../dictamen/useLangflowRecomendacion';
 import { useChartTheme } from '../../components/charts/chartTheme';
 import { ViewContainer } from '../../components/layout/AppShell';
 import {
@@ -78,6 +79,12 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
 
   const { dictamen, loading: dictamenLoading, error: dictamenError, generar, limpiar } =
     useDictamen();
+  const {
+    texto: recomendacionLangflow,
+    loading: langflowLoading,
+    error: langflowError,
+    generar: generarLangflow,
+  } = useLangflowRecomendacion();
 
   // El informe se muestra al final de la vista: al generarse, se lleva la
   // pantalla hasta él para que no quede fuera de la vista del usuario.
@@ -433,6 +440,24 @@ export const TerritoryDetail: React.FC<TerritoryDetailProps> = ({
                 >
                   Dictamen generado · Ver informe completo ↓
                 </button>
+              )}
+              <Button
+                variant="secondary"
+                onClick={() => generarLangflow(district.id)}
+                disabled={langflowLoading}
+                className="mt-2 w-full justify-center"
+              >
+                {langflowLoading
+                  ? 'Consultando Langflow…'
+                  : 'Recomendación operativa (Langflow)'}
+              </Button>
+              {langflowError && (
+                <p className="mt-2 text-[11px] text-negative">{langflowError}</p>
+              )}
+              {recomendacionLangflow && !langflowLoading && (
+                <p className="mt-2 whitespace-pre-wrap text-[11.5px] leading-relaxed text-foreground">
+                  {recomendacionLangflow}
+                </p>
               )}
             </div>
           </CardBody>

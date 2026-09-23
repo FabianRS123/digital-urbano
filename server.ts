@@ -257,6 +257,27 @@ async function startServer() {
     }
   });
 
+  // 12. Recomendación operativa (proxy a Langflow vía FastAPI).
+  // Independiente del dictamen LangChain: si Langflow está caído, el dictamen sigue.
+  app.post('/api/v1/langflow/recomendacion', async (req, res) => {
+    try {
+      const r = await fetch(`${AGENT_URL}/agent/recomendacion`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ districtId: req.body.districtId }),
+        signal: AbortSignal.timeout(90_000)
+      });
+      const body = await r.json();
+      res.status(r.status).json(body);
+    } catch (err: any) {
+      res.status(503).json({
+        error: 'Langflow no está disponible.',
+        hint: 'Levántalo con: docker start trusting_goodall',
+        detail: err?.message ?? String(err)
+      });
+    }
+  });
+
   app.get('/api/v1/agent/health', async (_req, res) => {
     try {
       const r = await fetch(`${AGENT_URL}/agent/health`, {

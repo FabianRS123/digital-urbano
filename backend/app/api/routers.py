@@ -10,7 +10,8 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.agent.agent import generar_dictamen, preguntar
+from app.agent.agent import generar_dictamen, preguntar, recoger_hechos
+from app.agent.langflow_client import langflow_configured, pedir_recomendacion
 from app.agent.llm import model_name, openrouter_configured
 from app.agent.tools import TwinUnavailable
 
@@ -25,6 +26,7 @@ def agent_health() -> dict:
         "provider": "openrouter",
         "model": model_name(),
         "llmReady": openrouter_configured(),
+        "langflowReady": langflow_configured(),
     }
 
 
@@ -41,6 +43,22 @@ def dictamen(req: DictamenRequest) -> dict:
     except TwinUnavailable as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except RuntimeError as exc:  # falta la clave de OpenRouter
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+class RecomendacionRequest(BaseModel):
+    districtId: int = Field(ge=1, le=10)
+
+
+@api_router.post("/agent/recomendacion")
+def recomendacion(req: RecomendacionRequest) -> dict:
+    """Recomendación operativa vía Langflow. El dictamen LangChain no cambia."""
+    try:
+        hechos = recoger_hechos(req.districtId)
+        return pedir_recomendacion(hechos)
+    except TwinUnavailable as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
