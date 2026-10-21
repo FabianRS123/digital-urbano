@@ -42,3 +42,7 @@ streamlit run app.py
 ```
 
 Abrir: **http://localhost:8501**
+
+## Figuras del artículo
+
+Las figuras del manuscrito se regeneran y se filtran por distrito en una aplicación aparte: ver `../streamlit-figuras/README.md`. Esa aplicación reutiliza `src/data_loader.py` y `src/models.py` de esta carpeta.
